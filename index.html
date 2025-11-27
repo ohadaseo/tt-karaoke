@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - גרירה מתוקנת</title>
+    <title>קריוקי - מערכת הרשמה</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -20,7 +20,26 @@
             overflow-x: hidden;
         }
 
-        /* --- נגן מקרן --- */
+        /* --- מסך כניסה (Login Modal) --- */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 9999;
+            display: flex; align-items: center; justify-content: center; flex-direction: column;
+        }
+        .login-box {
+            background: #1e1e1e; padding: 30px; border-radius: 15px;
+            width: 80%; max-width: 400px;
+            border: 2px solid #00e676;
+            text-align: center;
+        }
+        .login-title { font-size: 1.5em; margin-bottom: 20px; color: #fff; }
+        .login-btn {
+            background: #00e676; color: black; font-weight: bold; font-size: 18px;
+            padding: 12px; width: 100%; border: none; border-radius: 5px; cursor: pointer; margin-top: 15px;
+        }
+
+        /* --- נגן היוטיוב (רק למקרן!) --- */
         #player-wrapper {
             display: none; 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -29,24 +48,28 @@
         body.mode-projector #player-wrapper { display: block; }
         #player { width: 100%; height: 100%; }
 
-        /* שכבת בועות */
+        /* שכבת הבועות והמידע (מקרן) */
         #projector-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 200;
         }
+
         #chat-bubbles-area {
             position: absolute; bottom: 50px; left: 20px;
             width: 400px; max-width: 40%;
             display: flex; flex-direction: column-reverse;
         }
+
         .chat-bubble {
             background: rgba(0, 0, 0, 0.8);
             color: white; padding: 15px 25px; margin-top: 15px;
             border-radius: 30px; border-left: 6px solid #00e676;
             font-size: 28px; font-weight: bold; text-align: right;
             animation: floatUp 8s forwards;
+            text-shadow: 1px 1px 2px black;
         }
         .bubble-sender { font-size: 0.6em; color: #00e676; display: block; margin-bottom: 5px; }
+
         @keyframes floatUp {
             0% { opacity: 0; transform: translateY(50px) scale(0.8); }
             10% { opacity: 1; transform: translateY(0) scale(1); }
@@ -54,7 +77,7 @@
             100% { opacity: 0; transform: translateY(-50px); }
         }
 
-        /* פרטי זמר מקרן */
+        /* פרטי זמר במקרן */
         #projector-info {
             position: absolute; top: 30px; right: 30px;
             text-align: right; text-shadow: 2px 2px 4px #000;
@@ -63,42 +86,21 @@
         #p-singer { font-size: 3em; font-weight: bold; color: #ffd700; display: block; }
         #p-song { font-size: 1.8em; color: #fff; }
 
-        /* --- אדמין --- */
+        /* --- ממשק אדמין (בלי נגן) --- */
         #admin-controls { display: none; padding: 20px; background: #1a1a1a; border-bottom: 4px solid #00e676; }
         body.mode-admin #admin-controls { display: block; }
         
-        .admin-status-box { background: #000; border: 1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+        .admin-status-box {
+            background: #000; border: 1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 8px;
+        }
         .playing-indicator { color: #00e676; font-weight: bold; font-size: 1.2em; animation: pulseText 2s infinite; }
         @keyframes pulseText { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* --- רשימת שירים --- */
-        ul { list-style: none; padding: 0; margin: 0; }
-        li { background: #2a2a2a; margin: 10px 0; padding: 0; border-radius: 10px; border: 1px solid #444; overflow: hidden; }
-        
-        .song-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; }
-        
-        /* תיקון הגרירה: מוצג רק באדמין, צהוב וגדול */
-        .drag-handle { 
-            cursor: grab; 
-            font-size: 30px; 
-            color: #ffd700; /* צהוב בולט */
-            padding-left: 15px; 
-            display: none; 
-        }
-        body.mode-admin .drag-handle { display: block !important; }
-
-        .song-info { text-align: right; flex-grow: 1; }
-        .singer-label { color: #00e676; font-size: 0.9em; font-weight: bold; display: block; }
-        
-        /* כפתורי אדמין */
-        .admin-flex-group { display: none; gap: 10px; }
-        body.mode-admin .admin-flex-group { display: flex; }
-
         /* --- ממשק אורח --- */
-        #guest-view { padding: 15px; }
+        #guest-view { padding: 15px; transition: opacity 0.5s; }
         body.mode-projector #guest-view { display: none; } 
         
-        /* במה חיה */
+        /* במה חיה (למשתמשים) */
         #live-stage-user {
             display: none; background: linear-gradient(135deg, #111, #000);
             border-bottom: 4px solid #00e676; padding: 20px; margin-bottom: 20px;
@@ -107,22 +109,44 @@
         #live-star-btn { background: gold; color: black; font-weight: bold; padding: 10px 30px; border-radius: 50px; border:none; cursor: pointer; font-size: 18px; margin-top: 10px; }
         #live-star-btn:disabled { background: #444; color: #888; cursor: default; }
 
-        /* כללי */
+        /* אלמנטים כלליים */
         .container-box { background: #1e1e1e; border-radius: 12px; margin: 15px auto; padding: 15px; max-width: 600px; border: 1px solid #333; }
         input { padding: 12px; width: 90%; margin-bottom: 10px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; font-size: 16px; }
         .btn-main { background: #ff0055; color: white; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; font-weight: bold; }
+        
+        /* רשימה */
+        ul { list-style: none; padding: 0; margin: 0; }
+        li { background: #2a2a2a; margin: 10px 0; padding: 0; border-radius: 10px; border: 1px solid #444; overflow: hidden; }
+        .song-header { padding: 10px; display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; }
+        .song-info { text-align: right; flex-grow: 1; }
+        .singer-label { color: #00e676; font-size: 0.9em; font-weight: bold; display: block; }
+        
+        /* כפתורי אדמין בתוך שיר */
+        .admin-flex-group { display: none; gap: 10px; }
+        body.mode-admin .admin-flex-group { display: flex; }
+        .drag-handle { cursor: grab; font-size: 24px; color: #ffd700; padding-left: 10px; display: none; }
+        body.mode-admin .drag-handle { display: block; }
+
+        /* פוטר כפתורים */
+        #footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; padding: 10px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #333; z-index: 900; }
+        .mode-btn { background: #333; color: #aaa; border: 1px solid #444; padding: 5px 15px; cursor: pointer; border-radius: 5px; }
         
         /* טבלה */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         td { padding: 8px; border-bottom: 1px solid #333; font-size: 1.1em; }
         .rank-1 { color: #ffd700; font-weight: bold; font-size: 1.3em; }
-
-        /* פוטר */
-        #footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; padding: 10px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #333; z-index: 900; }
-        .mode-btn { background: #333; color: #aaa; border: 1px solid #444; padding: 5px 15px; cursor: pointer; border-radius: 5px; }
     </style>
 </head>
 <body>
+
+    <div id="login-overlay">
+        <div class="login-box">
+            <div class="login-title">🎤 ברוכים הבאים לקריוקי!</div>
+            <div style="margin-bottom:10px; color:#aaa;">כדי להתחיל, איך קוראים לך?</div>
+            <input type="text" id="loginNameInput" placeholder="הכנס את שמך כאן..." style="width:90%;">
+            <button class="login-btn" onclick="saveUserAndStart()">התחל לשיר! 🚀</button>
+        </div>
+    </div>
 
     <div id="player-wrapper">
         <div id="player"></div>
@@ -162,7 +186,7 @@
         </div>
 
         <div class="container-box">
-            <input type="text" id="userName" placeholder="מי הזמר/ת? (חובה)">
+            <h3 style="margin:0 0 10px 0; color:white;">הוספת שיר</h3>
             <input type="text" id="searchIn" placeholder="שם שיר או קישור מיוטיוב">
             <button class="btn-main" onclick="doSearch()">חפש / הוסף 🔍</button>
         </div>
@@ -181,8 +205,8 @@
     </div>
 
     <div id="footer-controls">
-        <button class="mode-btn" onclick="loginMode('admin')">Admin</button>
-        <button class="mode-btn" onclick="loginMode('projector')">Projector</button>
+        <button class="mode-btn" onclick="loginMode('admin')">Admin (שליטה)</button>
+        <button class="mode-btn" onclick="loginMode('projector')">Projector (מסך)</button>
         <button class="mode-btn" onclick="location.reload()">Guest</button>
     </div>
 
@@ -190,7 +214,7 @@
         // ==========================================
         // 1. מפתחות
         // ==========================================
-        const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
+       const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -217,12 +241,33 @@
         let currentLiveSongKey = null; 
         let loadTime = Date.now();
 
+        // בדיקה בהתחלה - האם להציג מסך לוגין?
+        const savedName = localStorage.getItem('karaokeName');
+        if (savedName) {
+            document.getElementById('login-overlay').style.display = 'none';
+        } else {
+            document.getElementById('login-overlay').style.display = 'flex';
+        }
+
+        // זיהוי מכשיר ייחודי
         let myUserId = localStorage.getItem('karaokeUserId');
         if (!myUserId) {
             myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('karaokeUserId', myUserId);
         }
-        document.getElementById('userName').value = localStorage.getItem('karaokeName') || '';
+
+        // שמירת המשתמש וכניסה
+        function saveUserAndStart() {
+            const name = document.getElementById('loginNameInput').value;
+            if (!name) { alert("חובה להזין שם!"); return; }
+            localStorage.setItem('karaokeName', name);
+            document.getElementById('login-overlay').style.display = 'none';
+        }
+
+        // קבלת שם נוכחי (פונקציית עזר)
+        function getCurrentUser() {
+            return localStorage.getItem('karaokeName') || "אורח";
+        }
 
         function getRandomApiKey() {
             return YOUTUBE_API_KEYS[Math.floor(Math.random() * YOUTUBE_API_KEYS.length)];
@@ -275,10 +320,10 @@
         }
 
         function sendChat() {
-            const name = document.getElementById('userName').value;
+            const name = getCurrentUser(); // שימוש בשם השמור
             const msg = document.getElementById('chatMsg').value;
-            if (!name) { alert("חובה להכניס את השם שלך למעלה!"); return; }
             if (!msg) return;
+            
             chatRef.push({ sender: name, text: msg, time: Date.now() });
             document.getElementById('chatMsg').value = '';
         }
@@ -286,7 +331,10 @@
         function initChatListener() {
             chatRef.on('child_added', snapshot => {
                 const msg = snapshot.val();
-                if (msg.time > loadTime) showBubble(msg);
+                if (msg.time > loadTime) {
+                    showBubble(msg);
+                    snapshot.ref.remove(); // מחיקה אוטומטית
+                }
             });
         }
 
@@ -363,6 +411,9 @@
                 if (!singerScores[singer]) singerScores[singer] = 0;
                 singerScores[singer] += stageScore; 
 
+                const safeTitle = (song.title || "טוען...").replace(/'/g, "");
+                const safeId = song.videoId || "";
+
                 const li = document.createElement('li');
                 li.setAttribute('data-key', song.key);
 
@@ -371,11 +422,11 @@
                         <div class="drag-handle">☰</div>
                         <div class="song-info">
                             <span class="singer-label">${singer}</span>
-                            <div class="song-title">${song.title}</div>
+                            <div class="song-title">${safeTitle}</div>
                         </div>
                         <div class="admin-flex-group" style="gap:10px;">
                              <button style="background:#00e676; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; color:black; font-weight:bold;" 
-                                onclick="moveToStage('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶ לבמה</button>
+                                onclick="moveToStage('${song.key}', '${safeId}', '${safeTitle}', '${singer}')">▶ לבמה</button>
                              <button style="background:#ff4444; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; color:white;" 
                                 onclick="deleteSong('${song.key}')">🗑</button>
                         </div>
@@ -399,11 +450,19 @@
         }
 
         // ==========================================
-        // 6. פעולות אדמין (הפעלה + מחיקה אוטומטית)
+        // 6. פעולות אדמין
         // ==========================================
         function moveToStage(key, videoId, title, singer) {
-            liveRef.set({ active: true, song: title, singer: singer, videoId: videoId, originalSongKey: key, timestamp: Date.now() });
-            queueRef.child(key).remove(); // מחיקה אוטומטית מהרשימה
+            liveRef.set({ 
+                active: true, 
+                song: title, 
+                singer: singer, 
+                videoId: videoId, 
+                originalSongKey: key, 
+                timestamp: Date.now() 
+            });
+            // מחיקה אוטומטית!
+            queueRef.child(key).remove();
         }
 
         function stopLive() { liveRef.update({ active: false }); }
@@ -424,12 +483,13 @@
             }
         });
 
-        // חיפוש
+        // חיפוש (עם שם אוטומטי)
         async function doSearch() {
             const input = document.getElementById('searchIn').value;
-            const name = document.getElementById('userName').value;
-            if (!input || !name) { alert("חובה למלא שם ושיר"); return; }
-            localStorage.setItem('karaokeName', name);
+            const name = getCurrentUser(); // שם מהזיכרון
+            
+            if (!input) { alert("חייב לרשום שם של שיר!"); return; }
+            
             const resDiv = document.getElementById('results');
             resDiv.style.display = 'block'; resDiv.innerHTML = 'טוען...';
 
@@ -458,10 +518,11 @@
         }
 
         function add(id, title) {
-            const name = document.getElementById('userName').value;
+            const name = getCurrentUser(); // שם מהזיכרון
             queueRef.push({ videoId: id, title: title, addedBy: name, customOrder: Date.now() });
             document.getElementById('results').style.display = 'none';
             document.getElementById('searchIn').value = '';
+            alert("השיר נוסף בהצלחה!");
         }
     </script>
 </body>
