@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי PRO - הצבעות וניהול</title>
+    <title>קריוקי PRO - דירוג ומיון</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -16,10 +16,14 @@
         #admin-panel { 
             display: none; 
             background: #1f1f1f; 
-            padding: 10px; 
+            padding: 15px; 
             border-bottom: 3px solid #00e676;
             margin-bottom: 20px;
         }
+
+        /* כפתור מיון */
+        .btn-sort { background: #ffc107; color: black; font-weight: bold; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; width: 100%; max-width: 300px; }
+        .btn-sort:hover { background: #e0a800; }
         
         /* --- אזור האורחים --- */
         .guest-area { padding: 15px; max-width: 600px; margin: 0 auto; }
@@ -33,16 +37,14 @@
             background: #252525; margin: 10px; padding: 10px; 
             display: flex; flex-direction: column; 
             border-radius: 8px; position: relative;
-            transition: background 0.3s;
+            transition: all 0.5s ease; /* אנימציה יפה לשינוי סדר */
         }
 
-        /* שורה עליונה: פרטי שיר */
         .song-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .song-info { text-align: right; flex-grow: 1; padding-right: 10px; }
         .singer-label { color: #ff0055; font-size: 0.8em; font-weight: bold; }
         .song-title { font-size: 1.1em; font-weight: 500; }
         
-        /* שורה תחתונה: הצבעות */
         .vote-area { 
             display: flex; align-items: center; justify-content: flex-end; 
             margin-top: 8px; border-top: 1px solid #333; padding-top: 5px; width: 100%;
@@ -52,12 +54,10 @@
         .vote-btn.active-dislike { background: rgba(255, 0, 0, 0.2); color: #ff4444; border-color: #ff4444; }
         .score-display { font-weight: bold; margin: 0 5px; color: #fff; min-width: 20px; }
 
-        /* --- כפתורי אדמין --- */
         .admin-controls { display: flex; gap: 10px; margin-left: 10px; }
-        .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding: 0 10px; display: none; } /* מוסתר לאורחים */
+        .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding: 0 10px; display: none; }
         .btn-action { border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; color: white; }
         
-        /* כפתור לוגין נסתר */
         #dj-login-btn { position: fixed; bottom: 10px; left: 10px; background: none; border: none; color: #444; cursor: pointer; }
     </style>
 </head>
@@ -67,6 +67,8 @@
         <h3 style="margin:0; color:#00e676;">🎧 DJ CONTROL</h3>
         <div id="player-container"><div id="player"></div></div>
         <div id="now-playing" style="margin-top:5px;">ממתין...</div>
+        
+        <button class="btn-sort" onclick="sortQueueByVotes()">🏆 מיין את הרשימה לפי כמות לייקים</button>
     </div>
 
     <h1>🎤 קריוקי PRO</h1>
@@ -86,9 +88,9 @@
 
     <script>
         // ==========================================
-        // 1. הגדרות (נא להכניס מפתחות!)
+        // 1. הגדרות - רשימת מפתחות למניעת חסימה
         // ==========================================
-        const YOUTUBE_API_KEY = 'AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA'; // *** הכנס כאן את מפתח היוטיוב שלך ***
+        const YOUTUBE_API_KEY = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -104,30 +106,31 @@
 
 
         // ==========================================
-        // 2. אתחול משתמש ומערכת
+        // 2. אתחול
         // ==========================================
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const queueRef = db.ref('proQueue'); // רשימה חדשה
+        const queueRef = db.ref('superPartyQueue'); // שם חדש לרשימה
 
         let player;
         let isAdmin = false;
         
-        // יצירת מזהה ייחודי למשתמש (כדי למנוע הצבעות כפולות)
+        // יצירת מזהה משתמש
         let myUserId = localStorage.getItem('karaokeUserId');
         if (!myUserId) {
             myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('karaokeUserId', myUserId);
         }
 
-        // טעינת שם
         document.getElementById('userName').value = localStorage.getItem('karaokeName') || '';
 
+        function getRandomApiKey() {
+            return YOUTUBE_API_KEYS[Math.floor(Math.random() * YOUTUBE_API_KEYS.length)];
+        }
+
         // ==========================================
-        // 3. תצוגת התור (Realtime)
+        // 3. תצוגת התור
         // ==========================================
-        
-        // אנו מקשיבים לרשימה וממיינים אותה לפי השדה 'customOrder'
         queueRef.orderByChild('customOrder').on('value', (snapshot) => {
             const listEl = document.getElementById('queue');
             listEl.innerHTML = '';
@@ -137,16 +140,15 @@
                 songs.push({ key: child.key, ...child.val() });
             });
 
-            // אם אין customOrder, נסדר לפי זמן (fallback)
             songs.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
 
             songs.forEach(song => {
                 const li = document.createElement('li');
-                li.setAttribute('data-key', song.key); // חשוב לגרירה
+                li.setAttribute('data-key', song.key);
 
-                // חישוב ניקוד
+                // חישוב ניקוד להצגה
                 let score = 0;
-                let myVote = 0; // 0 = לא הצבעתי, 1 = לייק, -1 = דיסלייק
+                let myVote = 0;
                 if (song.votes) {
                     Object.entries(song.votes).forEach(([uid, val]) => {
                         score += val;
@@ -154,105 +156,106 @@
                     });
                 }
 
-                // HTML בסיסי
                 let html = `
                     <div class="song-top">
                         <div class="drag-handle">☰</div>
-                        
                         <div class="song-info">
                             <span class="singer-label">${song.addedBy}</span>
                             <div class="song-title">${song.title}</div>
                         </div>
-
                         <div class="admin-controls" style="display:${isAdmin ? 'flex' : 'none'}">
-                             <button class="btn-action" style="background:#00e676; color:black;" onclick="playSong('${song.videoId}', '${song.title.replace(/'/g, "")}')">▶</button>
+                             <button class="btn-action" style="background:#00e676; color:black;" 
+                                onclick="playSong('${song.videoId}', '${song.title.replace(/'/g, "")}')">▶</button>
                              <button class="btn-action" style="background:#ff4444;" onclick="deleteSong('${song.key}')">🗑</button>
                         </div>
                     </div>
-                    
                     <div class="vote-area">
-                        <span style="font-size:12px; color:#666; margin-left:auto;">הצבעות:</span>
                         <button class="vote-btn ${myVote === 1 ? 'active-like' : ''}" onclick="vote('${song.key}', 1)">👍</button>
                         <span class="score-display">${score}</span>
                         <button class="vote-btn ${myVote === -1 ? 'active-dislike' : ''}" onclick="vote('${song.key}', -1)">👎</button>
                     </div>
                 `;
-
                 li.innerHTML = html;
                 listEl.appendChild(li);
             });
             
-            // אם אדמין - הצג את ידיות הגרירה
-            if(isAdmin) {
-                document.querySelectorAll('.drag-handle').forEach(el => el.style.display = 'block');
-            }
+            if(isAdmin) document.querySelectorAll('.drag-handle').forEach(el => el.style.display = 'block');
         });
 
-        // ==========================================
-        // 4. לוגיקה: הצבעות
-        // ==========================================
+        // הצבעה
         function vote(songKey, value) {
-            // שמירת ההצבעה תחת ה-ID של המשתמש בתוך השיר
-            // אם לוחצים שוב על אותו כפתור - מבטלים את ההצבעה (0)
             const songRef = queueRef.child(songKey).child('votes').child(myUserId);
-            
             songRef.transaction((currentValue) => {
-                if (currentValue === value) return null; // ביטול הצבעה
-                return value; // הצבעה חדשה
+                if (currentValue === value) return null; 
+                return value;
             });
         }
 
         // ==========================================
-        // 5. לוגיקה: גרירה ומיון (אדמין בלבד)
+        // 4. פונקציית המיון החדשה (למנהל)
         // ==========================================
-        
-        // הפעלת ספריית Sortable על הרשימה
+        function sortQueueByVotes() {
+            if(!isAdmin) return;
+
+            // מושכים את כל השירים פעם אחת
+            queueRef.once('value', snapshot => {
+                let songsArr = [];
+                snapshot.forEach(child => {
+                    let song = { key: child.key, ...child.val() };
+                    // חישוב ציון לשיר
+                    let score = 0;
+                    if(song.votes) {
+                        Object.values(song.votes).forEach(v => score += v);
+                    }
+                    song.totalScore = score;
+                    songsArr.push(song);
+                });
+
+                // מיון המערך: ציון גבוה למעלה
+                songsArr.sort((a, b) => b.totalScore - a.totalScore);
+
+                // עדכון הסדר בדאטהבייס
+                let updates = {};
+                songsArr.forEach((song, index) => {
+                    updates[`${song.key}/customOrder`] = index;
+                });
+
+                queueRef.update(updates).then(() => {
+                    alert("הרשימה סודרה בהצלחה לפי כמות הלייקים! 🏆");
+                });
+            });
+        }
+
+        // גרירה ידנית
         new Sortable(document.getElementById('queue'), {
-            handle: '.drag-handle', // גרירה רק מהידית
+            handle: '.drag-handle',
             animation: 150,
-            onEnd: function (evt) {
-                // כשהגרירה מסתיימת, אנחנו צריכים לעדכן את הסדר בדאטהבייס
-                if (!isAdmin) return; // הגנה
-                updateOrderInFirebase();
+            onEnd: function () {
+                if (!isAdmin) return;
+                const items = document.querySelectorAll('#queue li');
+                const updates = {};
+                items.forEach((item, index) => {
+                    const key = item.getAttribute('data-key');
+                    updates[`${key}/customOrder`] = index;
+                });
+                queueRef.update(updates);
             }
         });
 
-        function updateOrderInFirebase() {
-            // עוברים על ה-DOM לפי הסדר החדש ושומרים את האינדקס
-            const items = document.querySelectorAll('#queue li');
-            const updates = {};
-            
-            items.forEach((item, index) => {
-                const key = item.getAttribute('data-key');
-                updates[`${key}/customOrder`] = index; // עדכון שדה הסדר
-            });
-
-            queueRef.update(updates);
-        }
-
         // ==========================================
-        // 6. לוגיקה: אדמין ונגן
+        // 5. ניהול אדמין
         // ==========================================
         function adminLogin() {
-            const pass = prompt("סיסמת DJ:");
-            if (pass === "1234") {
+            if (prompt("סיסמה:") === "1234") {
                 isAdmin = true;
                 localStorage.setItem('isAdminMode', 'true');
-                
-                // רענון המסך כדי להחיל שינויים
                 document.getElementById('admin-panel').style.display = 'block';
                 document.getElementById('dj-login-btn').style.display = 'none';
-                
-                // טעינת רשימה מחדש (טריק קטן כדי שהכפתורים יופיעו מיד)
-                queueRef.once('value', snapshot => { /* מפעיל מחדש את ה-listener */ }); 
-                
+                queueRef.once('value'); 
                 loadPlayer();
-            } else {
-                alert("סיסמה שגויה");
             }
         }
 
-        // שחזור מצב אדמין ברענון דף
         if (localStorage.getItem('isAdminMode') === 'true') {
             isAdmin = true;
             document.getElementById('admin-panel').style.display = 'block';
@@ -272,8 +275,7 @@
         function onYouTubeIframeAPIReady() {
             if(isAdmin) {
                 player = new YT.Player('player', {
-                    height: '360',
-                    width: '100%',
+                    height: '360', width: '100%',
                     playerVars: { 'autoplay': 1, 'controls': 1 },
                 });
             }
@@ -292,19 +294,26 @@
         }
 
         // ==========================================
-        // 7. חיפוש והוספה (רגיל)
+        // 6. חיפוש
         // ==========================================
         async function doSearch() {
             const q = document.getElementById('searchIn').value;
             const name = document.getElementById('userName').value;
-            if (!q || !name) { alert("חובה למלא שם ושיר"); return; }
+            if (!q || !name) { alert("חסר שם/שיר"); return; }
             localStorage.setItem('karaokeName', name);
 
-            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(q + " karaoke")}&key=${YOUTUBE_API_KEY}`;
+            const currentKey = getRandomApiKey();
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(q + " karaoke")}&key=${currentKey}`;
             
             try {
                 const res = await fetch(url);
                 const data = await res.json();
+                
+                if (data.error && data.error.code === 403) {
+                    alert("מכסת חיפוש נגמרה למפתח זה, נסה שוב.");
+                    return; 
+                }
+
                 const resDiv = document.getElementById('results');
                 resDiv.innerHTML = '';
 
@@ -313,9 +322,7 @@
                         resDiv.innerHTML += `
                             <div style="background:#222; margin:5px 0; padding:10px; display:flex; align-items:center; border-radius:5px;">
                                 <img src="${item.snippet.thumbnails.default.url}" width="60" style="margin-left:10px;">
-                                <div style="flex-grow:1; text-align:right;">
-                                    <div>${item.snippet.title}</div>
-                                </div>
+                                <div style="flex-grow:1; text-align:right;">${item.snippet.title}</div>
                                 <button class="btn-main" style="width:auto; padding:5px 15px; font-size:14px; background:green;" 
                                 onclick="add('${item.id.videoId}', '${item.snippet.title.replace(/'/g, "")}')">בחר</button>
                             </div>
@@ -327,12 +334,8 @@
 
         function add(id, title) {
             const name = document.getElementById('userName').value;
-            // אנחנו מוסיפים שדה customOrder שיהיה שווה לזמן, כדי שזה יהיה בסוף הרשימה כברירת מחדל
             queueRef.push({
-                videoId: id,
-                title: title,
-                addedBy: name,
-                customOrder: Date.now() 
+                videoId: id, title: title, addedBy: name, customOrder: Date.now() 
             });
             document.getElementById('results').innerHTML = '<p style="color:#00e676;">✅ נוסף!</p>';
             document.getElementById('searchIn').value = '';
