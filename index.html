@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - הגרסה הסופית</title>
+    <title>קריוקי - מערכת הצבעות מלאה</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -16,64 +16,85 @@
             color: white; 
             text-align: center; 
             margin: 0; padding: 0;
-            background-image: url('bg.jpg'); /* אם יש תמונה */
+            background-image: url('bg.jpg'); 
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
+            padding-bottom: 80px;
         }
         
+        /* קופסאות תוכן */
         .container-box {
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9); /* כהה יותר לקריאות */
             border-radius: 15px; margin: 15px auto; padding: 15px;
-            max-width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 600px; border: 1px solid #333;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
         }
 
-        /* כפתור מיון לאדמין */
+        /* כפתורי שליטה ראשיים */
         .btn-sort {
-            background: linear-gradient(45deg, #ffd700, #ffaa00);
-            color: black; font-weight: bold; padding: 12px; 
-            border: none; border-radius: 8px; cursor: pointer; 
-            width: 100%; margin-top: 10px; font-size: 16px;
-            box-shadow: 0 4px 10px rgba(255, 215, 0, 0.3);
+            background: linear-gradient(90deg, #ff8c00, #ff0080);
+            color: white; font-weight: bold; padding: 15px; 
+            border: none; border-radius: 50px; cursor: pointer; 
+            width: 100%; margin-top: 10px; font-size: 18px;
+            box-shadow: 0 5px 15px rgba(255, 0, 128, 0.4);
         }
-        .btn-sort:active { transform: scale(0.98); }
 
-        /* טבלה */
+        /* טבלת מובילים */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { color: #aaa; font-size: 0.8em; padding: 5px; border-bottom: 1px solid #444; }
-        td { padding: 8px; font-size: 1.1em; border-bottom: 1px solid #333; }
-        .rank-1 { color: #ffd700; font-weight: bold; text-shadow: 0 0 5px rgba(255,215,0,0.5); } 
+        th { color: #888; font-size: 0.9em; padding: 5px; border-bottom: 1px solid #444; }
+        td { padding: 10px; font-size: 1.2em; border-bottom: 1px solid #333; font-weight: bold; }
+        .rank-1 { color: #ffd700; font-size: 1.4em; } 
         
-        /* רשימה */
-        ul { list-style: none; padding: 0; margin: 0; padding-bottom: 80px; }
+        /* עיצוב רשימת השירים וההצבעות */
+        ul { list-style: none; padding: 0; margin: 0; }
         li { 
-            background: #252525; margin: 10px 0; padding: 10px; 
+            background: #252525; margin: 15px 0; padding: 0; 
             display: flex; flex-direction: column; 
-            border-radius: 8px; position: relative; border: 1px solid #333;
-            transition: all 0.3s ease;
+            border-radius: 12px; position: relative; border: 1px solid #444;
+            overflow: hidden; /* מבטיח שהתוכן לא יברח */
         }
 
-        .song-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .song-info { text-align: right; flex-grow: 1; padding-right: 10px; }
-        .singer-label { color: #ff0055; font-size: 0.9em; font-weight: bold; }
-        .song-title { font-size: 1.1em; }
-        
-        .vote-area { 
-            display: flex; align-items: center; justify-content: flex-end; 
-            margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; width: 100%;
+        /* החלק העליון של השיר */
+        .song-header {
+            padding: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: #2a2a2a;
         }
-        .vote-btn { background: none; border: 1px solid #444; color: #888; cursor: pointer; border-radius: 5px; margin: 0 5px; padding: 5px 12px; font-size: 16px; }
-        .vote-btn.active-like { background: rgba(0, 255, 0, 0.2); color: #00e676; border-color: #00e676; }
-        .vote-btn.active-dislike { background: rgba(255, 0, 0, 0.2); color: #ff4444; border-color: #ff4444; }
-        .score-display { font-weight: bold; margin: 0 10px; color: #fff; min-width: 20px; font-size: 1.2em; }
+        .song-info { text-align: right; flex-grow: 1; }
+        .singer-label { color: #ff0055; font-size: 0.9em; font-weight: bold; display: block; }
+        .song-title { font-size: 1.2em; font-weight: 500; color: #fff; }
+
+        /* אזור ההצבעה - גדול וברור */
+        .vote-area { 
+            display: flex; align-items: center; justify-content: center; 
+            background: #1a1a1a; padding: 10px; 
+            border-top: 1px solid #444; gap: 15px;
+        }
+        
+        .vote-btn { 
+            background: #333; border: 1px solid #555; color: #aaa; 
+            cursor: pointer; border-radius: 30px; 
+            padding: 8px 25px; font-size: 18px; 
+            transition: all 0.2s; display: flex; align-items: center; gap: 5px;
+        }
+        
+        /* מצבים פעילים של כפתורים */
+        .vote-btn.active-like { background: #00e676; color: black; border-color: #00e676; font-weight: bold; transform: scale(1.05); }
+        .vote-btn.active-dislike { background: #ff4444; color: white; border-color: #ff4444; font-weight: bold; transform: scale(1.05); }
+        
+        .score-display { 
+            font-weight: bold; color: white; font-size: 1.5em; min-width: 40px; 
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
 
         /* אדמין */
         #admin-panel { display: none; background: #000; padding: 15px; border-bottom: 4px solid #00e676; }
-        .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding: 0 10px; display: none; } /* מוסתר לאורחים */
+        .drag-handle { cursor: grab; font-size: 26px; color: #aaa; padding-left: 15px; display: none; }
         
         input { padding: 12px; width: 90%; margin-bottom: 10px; background: #333; color: white; border: 1px solid #555; border-radius: 8px; font-size: 16px; }
-        .btn-main { background: #ff0055; color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; }
-        #dj-login-btn { position: fixed; bottom: 10px; left: 10px; background: none; border: none; color: #888; cursor: pointer; font-size: 12px; }
+        .btn-main { background: #007bff; color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; }
+        #dj-login-btn { position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.5); border: 1px solid #555; color: #ccc; cursor: pointer; padding: 5px 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -81,9 +102,8 @@
     <div id="admin-panel">
         <h3 style="margin:0; color:#00e676;">🎧 DJ CONTROL</h3>
         <div id="player-container"><div id="player"></div></div>
-        <div id="now-playing" style="margin-top:5px; color:#00e676;">...</div>
-        
-        <button class="btn-sort" onclick="sortQueueByVotes()">🏆 סדר את השירים לפי כמות לייקים</button>
+        <div id="now-playing" style="margin-top:5px; color:#00e676; font-weight:bold;">...</div>
+        <button class="btn-sort" onclick="sortQueueByVotes()">🏆 סדר את השירים לפי דירוג</button>
     </div>
 
     <div class="container-box">
@@ -95,24 +115,24 @@
     </div>
 
     <div class="container-box">
-        <input type="text" id="userName" placeholder="שם הזמר/ת (חובה!)">
-        <input type="text" id="searchIn" placeholder="שם שיר או לינק מיוטיוב">
+        <input type="text" id="userName" placeholder="מי שר/ה? (חובה)">
+        <input type="text" id="searchIn" placeholder="שם שיר או לינק">
         <button class="btn-main" onclick="doSearch()">חפש / הוסף 🔍</button>
     </div>
     <div id="results" class="container-box" style="display:none;"></div>
 
-    <div class="container-box" style="background:transparent; box-shadow:none; padding:0;">
-        <h3 style="color:#aaa; text-align:right; margin-right:10px;">רשימת השירים:</h3>
+    <div class="container-box" style="background:transparent; box-shadow:none; padding:0; border:none;">
+        <h3 style="color:#aaa; text-align:right; margin-right:10px;">רשימת השירים והצבעות:</h3>
         <ul id="queue"></ul>
     </div>
 
-    <button id="dj-login-btn" onclick="adminLogin()">Admin 🔒</button>
+    <button id="dj-login-btn" onclick="adminLogin()">Admin Login</button>
 
     <script>
         // ==========================================
-        // 1. מפתחות
+        // 1. מפתחות - להדביק כאן!
         // ==========================================
-        const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
+              const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -129,7 +149,7 @@
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const queueRef = db.ref('finalQueue_v12');
+        const queueRef = db.ref('karaoke_final_v1'); // שם חדש כדי למנוע התנגשויות
 
         let player;
         let isAdmin = false;
@@ -147,7 +167,7 @@
         }
 
         // ==========================================
-        // 2. ניהול תור, לייקים ומיון
+        // 2. ניהול תור והצבעות
         // ==========================================
         queueRef.orderByChild('customOrder').on('value', (snapshot) => {
             const listEl = document.getElementById('queue');
@@ -160,7 +180,6 @@
                 songs.push({ key: child.key, ...child.val() });
             });
 
-            // מיון לפי הסדר שנקבע (customOrder)
             songs.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
 
             songs.forEach(song => {
@@ -173,34 +192,41 @@
                         if (uid === myUserId) myVote = val;
                     });
                 }
-                // שמירה לאובייקט הטבלה
-                const singer = song.addedBy || "אנונימי";
+                
+                // עדכון טבלה
+                const singer = song.addedBy || "אורח";
                 if (!singerScores[singer]) singerScores[singer] = 0;
                 singerScores[singer] += score;
 
-                // בניית HTML
+                // יצירת ה-HTML
                 const li = document.createElement('li');
-                li.setAttribute('data-key', song.key); // חשוב לגרירה
+                li.setAttribute('data-key', song.key);
 
                 let html = `
-                    <div class="song-top">
+                    <div class="song-header">
                         <div class="drag-handle">☰</div>
                         <div class="song-info">
                             <span class="singer-label">${singer}</span>
                             <div class="song-title">${song.title}</div>
                         </div>
-                        <div style="display:${isAdmin ? 'flex' : 'none'}; gap:5px;">
-                             <button style="background:#00e676; border:none; padding:5px; border-radius:4px; cursor:pointer;" 
+                        <div style="display:${isAdmin ? 'flex' : 'none'}; gap:10px;">
+                             <button style="background:#00e676; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;" 
                                 onclick="playSong('${song.videoId}', '${song.title.replace(/'/g, "")}')">▶</button>
-                             <button style="background:#ff4444; border:none; padding:5px; border-radius:4px; cursor:pointer; color:white;" 
+                             <button style="background:#ff4444; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; color:white;" 
                                 onclick="deleteSong('${song.key}')">🗑</button>
                         </div>
                     </div>
+                    
                     <div class="vote-area">
-                        <span style="font-size:0.8em; color:#aaa; margin-left:auto;">דירוג:</span>
-                        <button class="vote-btn ${myVote === 1 ? 'active-like' : ''}" onclick="vote('${song.key}', 1)">👍</button>
+                        <button class="vote-btn ${myVote === 1 ? 'active-like' : ''}" onclick="vote('${song.key}', 1)">
+                            👍 לייק
+                        </button>
+                        
                         <span class="score-display">${score}</span>
-                        <button class="vote-btn ${myVote === -1 ? 'active-dislike' : ''}" onclick="vote('${song.key}', -1)">👎</button>
+                        
+                        <button class="vote-btn ${myVote === -1 ? 'active-dislike' : ''}" onclick="vote('${song.key}', -1)">
+                            👎 בוז
+                        </button>
                     </div>
                 `;
                 li.innerHTML = html;
@@ -209,40 +235,9 @@
 
             updateLeaderboard(singerScores);
             
-            // הצגת ידיות גרירה לאדמין
             if(isAdmin) document.querySelectorAll('.drag-handle').forEach(el => el.style.display = 'block');
         });
 
-        // פונקציית המיון לפי לייקים (לאדמין)
-        function sortQueueByVotes() {
-            if(!isAdmin) return;
-            if(!confirm("זה יסדר מחדש את כל התור לפי כמות הלייקים. להמשיך?")) return;
-
-            queueRef.once('value', snapshot => {
-                let songsArr = [];
-                snapshot.forEach(child => {
-                    let song = { key: child.key, ...child.val() };
-                    // חישוב ניקוד
-                    let score = 0;
-                    if(song.votes) Object.values(song.votes).forEach(v => score += v);
-                    song.tempScore = score;
-                    songsArr.push(song);
-                });
-
-                // מיון המערך: ציון גבוה ראשון
-                songsArr.sort((a, b) => b.tempScore - a.tempScore);
-
-                // עדכון customOrder ב-Firebase
-                let updates = {};
-                songsArr.forEach((song, index) => {
-                    updates[`${song.key}/customOrder`] = index;
-                });
-
-                queueRef.update(updates);
-            });
-        }
-
-        // פונקציה לעדכון הטבלה
         function updateLeaderboard(scoresObj) {
             const tbody = document.getElementById('leaderboard-body');
             tbody.innerHTML = '';
@@ -252,7 +247,8 @@
 
             sortedSingers.slice(0, 5).forEach((singer, index) => {
                 let rankClass = index === 0 ? 'rank-1' : '';
-                tbody.innerHTML += `<tr><td class="${rankClass}">${index + 1}</td><td class="${rankClass}">${singer.name}</td><td class="${rankClass}">${singer.score}</td></tr>`;
+                let icon = index === 0 ? '👑' : (index+1);
+                tbody.innerHTML += `<tr><td class="${rankClass}">${icon}</td><td class="${rankClass}">${singer.name}</td><td class="${rankClass}">${singer.score}</td></tr>`;
             });
         }
 
@@ -261,10 +257,28 @@
             songRef.transaction((curr) => (curr === value ? null : value));
         }
 
-        // הפעלת גרירה
+        function sortQueueByVotes() {
+            if(!isAdmin) return;
+            if(!confirm("לסדר מחדש לפי דירוג?")) return;
+            queueRef.once('value', snapshot => {
+                let songsArr = [];
+                snapshot.forEach(child => {
+                    let song = { key: child.key, ...child.val() };
+                    let score = 0;
+                    if(song.votes) Object.values(song.votes).forEach(v => score += v);
+                    song.tempScore = score;
+                    songsArr.push(song);
+                });
+                songsArr.sort((a, b) => b.tempScore - a.tempScore);
+                let updates = {};
+                songsArr.forEach((song, index) => { updates[`${song.key}/customOrder`] = index; });
+                queueRef.update(updates);
+            });
+        }
+
+        // גרירה
         new Sortable(document.getElementById('queue'), {
-            handle: '.drag-handle',
-            animation: 150,
+            handle: '.drag-handle', animation: 150,
             onEnd: function () {
                 if (!isAdmin) return;
                 const items = document.querySelectorAll('#queue li');
@@ -278,50 +292,42 @@
         });
 
         // ==========================================
-        // 3. חיפוש (לינקים + API)
+        // 3. חיפוש
         // ==========================================
         async function doSearch() {
             const input = document.getElementById('searchIn').value;
             const name = document.getElementById('userName').value;
-            if (!input || !name) { alert("חובה למלא שם ושיר!"); return; }
+            if (!input || !name) { alert("חסר שם או שיר"); return; }
             localStorage.setItem('karaokeName', name);
 
             const resDiv = document.getElementById('results');
-            resDiv.style.display = 'block';
-            resDiv.innerHTML = 'טוען...';
+            resDiv.style.display = 'block'; resDiv.innerHTML = 'טוען...';
 
             // בדיקת לינק
             const videoIdMatch = input.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-
             if (videoIdMatch) {
                 add(videoIdMatch[1], "שיר מקישור ישיר 🔗");
                 return;
             }
 
-            // חיפוש רגיל
+            // חיפוש API
             const currentKey = getRandomApiKey();
             const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(input + " karaoke")}&key=${currentKey}`;
             
             try {
                 const res = await fetch(url);
                 const data = await res.json();
-                
-                if (data.error) {
-                    alert("שגיאת מכסה! נסה להדביק לינק מיוטיוב.");
-                    return;
-                }
-
+                if (data.error) { alert("מכסת חיפוש מלאה, השתמש בלינק."); return; }
                 resDiv.innerHTML = '';
                 if (data.items) {
                     data.items.forEach(item => {
                         resDiv.innerHTML += `
                             <div style="background:rgba(255,255,255,0.1); margin:5px 0; padding:10px; display:flex; align-items:center; border-radius:5px;">
-                                <img src="${item.snippet.thumbnails.default.url}" width="50" style="margin-left:10px;">
+                                <img src="${item.snippet.thumbnails.default.url}" width="60" style="margin-left:10px;">
                                 <div style="flex-grow:1; text-align:right;">${item.snippet.title}</div>
-                                <button class="btn-main" style="width:auto; padding:5px 15px; font-size:14px; background:#00e676; color:black;" 
+                                <button class="btn-main" style="width:auto; padding:5px 15px; background:#00e676; color:black; font-size:14px;" 
                                 onclick="add('${item.id.videoId}', '${item.snippet.title.replace(/'/g, "")}')">בחר</button>
-                            </div>
-                        `;
+                            </div>`;
                     });
                 }
             } catch(e) { alert("שגיאה בחיפוש"); }
@@ -337,7 +343,7 @@
         function deleteSong(key) { if(confirm("למחוק?")) queueRef.child(key).remove(); }
 
         // ==========================================
-        // 4. אדמין
+        // 4. אדמין (סיסמה 21212121)
         // ==========================================
         function adminLogin() {
             if (prompt("סיסמה:") === "21212121") {
@@ -376,7 +382,7 @@
         function playSong(videoId, title) {
             if(player) {
                 player.loadVideoById(videoId);
-                document.getElementById('now-playing').innerText = "מתנגן: " + title;
+                document.getElementById('now-playing').innerText = title;
                 window.scrollTo(0,0);
             }
         }
