@@ -88,7 +88,7 @@
         // ==========================================
         // 1. הגדרות (נא להכניס מפתחות!)
         // ==========================================
-             const YOUTUBE_API_KEY = 'AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA'; // *** הכנס כאן את מפתח היוטיוב שלך ***
+        const YOUTUBE_API_KEY = 'AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA'; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -270,3 +270,73 @@
         }
 
         function onYouTubeIframeAPIReady() {
+            if(isAdmin) {
+                player = new YT.Player('player', {
+                    height: '360',
+                    width: '100%',
+                    playerVars: { 'autoplay': 1, 'controls': 1 },
+                });
+            }
+        }
+
+        function playSong(videoId, title) {
+            if(player) {
+                player.loadVideoById(videoId);
+                document.getElementById('now-playing').innerText = "מתנגן: " + title;
+                window.scrollTo(0,0);
+            }
+        }
+
+        function deleteSong(key) {
+            if(confirm("למחוק?")) queueRef.child(key).remove();
+        }
+
+        // ==========================================
+        // 7. חיפוש והוספה (רגיל)
+        // ==========================================
+        async function doSearch() {
+            const q = document.getElementById('searchIn').value;
+            const name = document.getElementById('userName').value;
+            if (!q || !name) { alert("חובה למלא שם ושיר"); return; }
+            localStorage.setItem('karaokeName', name);
+
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(q + " karaoke")}&key=${YOUTUBE_API_KEY}`;
+            
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const resDiv = document.getElementById('results');
+                resDiv.innerHTML = '';
+
+                if (data.items) {
+                    data.items.forEach(item => {
+                        resDiv.innerHTML += `
+                            <div style="background:#222; margin:5px 0; padding:10px; display:flex; align-items:center; border-radius:5px;">
+                                <img src="${item.snippet.thumbnails.default.url}" width="60" style="margin-left:10px;">
+                                <div style="flex-grow:1; text-align:right;">
+                                    <div>${item.snippet.title}</div>
+                                </div>
+                                <button class="btn-main" style="width:auto; padding:5px 15px; font-size:14px; background:green;" 
+                                onclick="add('${item.id.videoId}', '${item.snippet.title.replace(/'/g, "")}')">בחר</button>
+                            </div>
+                        `;
+                    });
+                }
+            } catch(e) { alert("שגיאה בחיפוש"); }
+        }
+
+        function add(id, title) {
+            const name = document.getElementById('userName').value;
+            // אנחנו מוסיפים שדה customOrder שיהיה שווה לזמן, כדי שזה יהיה בסוף הרשימה כברירת מחדל
+            queueRef.push({
+                videoId: id,
+                title: title,
+                addedBy: name,
+                customOrder: Date.now() 
+            });
+            document.getElementById('results').innerHTML = '<p style="color:#00e676;">✅ נוסף!</p>';
+            document.getElementById('searchIn').value = '';
+        }
+    </script>
+</body>
+</html>
