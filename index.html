@@ -1,165 +1,212 @@
-זה בהחלט אפשרי וזה רעיון מעולה\! זה נקרא **Overlay** (שכבת-על).
-אנחנו לא באמת יכולים "להזריק" את זה לתוך הנגן של יוטיוב (כי הוא סגור בתוך Iframe), אבל אנחנו יכולים לשים שכבה שקופה **מעל** הנגן, ובתוכה להקפיץ את הבועות.
-
-הנה **גרסה 20.0 (Chat Overlay Edition)**.
-
-### מה חדש כאן?
-
-1.  **בועות צ'אט:** כשמשתמש שולח הודעה ("תגביה\!", "מזל טוב\!"), בועה מעוצבת צצה בפינה השמאלית התחתונה של הוידאו, עולה למעלה לאט ונעלמת.
-2.  **שכבה שקופה:** הבועות צפות "על" הוידאו, אבל לא מפריעות ללחוץ על הנגן (השתמשתי ב-`pointer-events: none`).
-3.  **מניעת הצפה:** הוספתי הגנה כדי שהודעות ישנות מההיסטוריה לא יקפצו בבת אחת כשאתה נכנס, אלא רק הודעות חדשות שנשלחות מעכשיו.
-
-### הוראות:
-
-1.  **סיסמה:** `21212121`.
-2.  **הכנס מפתחות API.**
-3.  **תבדוק:** תפתח שני מכשירים. באחד תהיה אדמין, בשני שלח הודעה ותראה אותה קופצת על הוידאו.
-
-<!-- end list -->
-
-```html
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - צ'אט בועות</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>קריוקי - YouTube Live Style</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     
     <style>
+        :root {
+            --yt-bg-color: #181818;
+            --yt-text-color: #ffffff;
+            --yt-secondary-text: #aaaaaa;
+            --yt-brand-color: #ff0000;
+            --yt-chat-bg: #202020;
+            --yt-chat-bubble-bg: #303030;
+            --yt-border-color: #383838;
+        }
+
         body { 
-            font-family: 'Segoe UI', sans-serif; 
-            background: #121212; 
-            color: white; 
+            font-family: 'Roboto', 'Segoe UI', sans-serif; 
+            background: var(--yt-bg-color); 
+            color: var(--yt-text-color); 
             text-align: center; 
             margin: 0; padding: 0;
             padding-bottom: 80px;
+            overflow-x: hidden;
         }
 
-        /* --- מעטפת הנגן והבועות (חשוב!) --- */
-        #video-wrapper {
-            position: relative; /* כדי שהבועות יהיו יחסיות לוידאו */
-            width: 100%;
-            max-width: 640px;
-            margin: 0 auto;
+        /* === מבנה ה-YouTube Live (מסך מפוצל) === */
+        #admin-panel { 
+            display: none; 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--yt-bg-color);
+            z-index: 1000;
         }
 
-        /* אזור הבועות שצף על הוידאו */
-        #chat-overlay-layer {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 50%; /* תופס את החלק השמאלי */
-            height: 80%;
-            pointer-events: none; /* מאפשר ללחוץ על הוידאו דרך השכבה */
+        .yt-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px; /* שמאל=נגן, ימין=צ'אט (ברירת מחדל לרוחב) */
+            height: 100%;
+        }
+
+        /* אזור הנגן (משמאל במחשב, למעלה בנייד) */
+        #video-zone-col {
+            display: flex; flex-direction: column;
+            border-left: 1px solid var(--yt-border-color);
+            padding: 10px;
+        }
+        
+        #player-container {
+            flex-grow: 1; /* תופס את רוב הגובה */
+            background: #000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #player { width: 100%; height: 100%; }
+
+        .admin-controls-bar {
+            padding: 15px; background: #282828;
+            display: flex; gap: 10px; border-top: 1px solid var(--yt-border-color);
+        }
+
+        /* אזור הצ'אט (מימין במחשב, למטה בנייד) */
+        #chat-zone-col {
+            background: var(--yt-chat-bg);
+            display: flex; flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--yt-border-color);
+            font-weight: 500; font-size: 1.1em; text-align: right;
+            background: var(--yt-chat-bg);
+        }
+
+        #chat-messages-container {
+            flex-grow: 1;
+            overflow-y: auto; /* גלילה */
+            padding: 15px;
+            display: flex; flex-direction: column; gap: 10px;
+            scroll-behavior: smooth;
+        }
+        
+        /* בועת צ'אט בסגנון יוטיוב */
+        .yt-chat-bubble {
             display: flex;
-            flex-direction: column-reverse; /* הודעות חדשות למטה */
-            overflow: hidden;
-            z-index: 10;
+            align-items: flex-start;
+            gap: 10px;
+            animation: fadeIn 0.3s ease-out;
         }
-
-        /* עיצוב הבועה */
-        .chat-bubble {
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 8px 15px;
-            margin-bottom: 10px;
-            border-radius: 20px;
-            border-left: 4px solid #00e676;
-            font-size: 14px;
+        
+        .yt-avatar {
+            width: 32px; height: 32px;
+            background: #555; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 14px; color: #ccc;
+        }
+        
+        .yt-bubble-content {
+            background: var(--yt-chat-bubble-bg);
+            padding: 8px 12px;
+            border-radius: 16px;
+            border-top-right-radius: 2px; /* הפינה שפונה לאווטאר */
             text-align: right;
-            width: fit-content;
-            animation: popAndFade 6s forwards; /* האנימציה */
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            max-width: 85%;
         }
 
-        .bubble-sender { color: #00e676; font-weight: bold; font-size: 0.9em; display:block;}
-
-        /* האנימציה של הבועה */
-        @keyframes popAndFade {
-            0% { opacity: 0; transform: translateY(20px) scale(0.8); }
-            10% { opacity: 1; transform: translateY(0) scale(1); }
-            80% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-20px); }
+        .bubble-sender { 
+            font-weight: 500; color: var(--yt-secondary-text); font-size: 0.9em; display: block; margin-bottom: 2px;
         }
 
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* התאמה למובייל (מסך צר) */
+        @media (max-width: 768px) {
+            .yt-layout {
+                grid-template-columns: 1fr; /* עמודה אחת */
+                grid-template-rows: 1fr 1fr; /* חצי-חצי בגובה */
+            }
+            #video-zone-col { order: 1; border-left: none; border-bottom: 1px solid var(--yt-border-color); }
+            #chat-zone-col { order: 2; }
+        }
+
+        /* --- שאר הממשק (למשתמש קצה) --- */
         /* --- במה חיה (LIVE STAGE) --- */
         #live-stage {
             display: none; 
             background: linear-gradient(180deg, #1a1a1a, #000);
-            border-bottom: 4px solid #00e676;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0, 230, 118, 0.15);
+            border-bottom: 3px solid var(--yt-brand-color);
+            padding: 20px; margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
-        
+        .live-singer { font-size: 2em; font-weight: bold; margin: 5px 0; }
+        .live-song { font-size: 1.2em; color: var(--yt-secondary-text); margin-bottom: 15px; }
         #live-star-btn {
             background: gold; color: black; font-size: 18px; font-weight: bold;
-            padding: 12px 30px; border: none; border-radius: 50px; cursor: pointer;
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+            padding: 12px 30px; border: none; border-radius: 2px; cursor: pointer;
         }
-        #live-star-btn:disabled { background: #444; color: #888; box-shadow: none; }
+        #live-star-btn:disabled { background: #444; color: #888; }
 
-        /* קופסאות ועיצוב כללי */
+        /* קופסאות */
         .container-box {
-            background: #1e1e1e;
-            border-radius: 12px; margin: 15px auto; padding: 15px;
-            max-width: 600px; border: 1px solid #333;
+            background: #212121;
+            border-radius: 4px; margin: 15px auto; padding: 15px;
+            max-width: 600px; border: 1px solid var(--yt-border-color);
         }
-
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { color: var(--yt-secondary-text); font-size: 0.9em; padding: 8px; border-bottom: 1px solid var(--yt-border-color); }
         td { padding: 10px; font-size: 1.2em; border-bottom: 1px solid #333; font-weight: bold; }
-        .rank-1 { color: #ffd700; font-size: 1.5em; text-shadow: 0 0 10px rgba(255,215,0,0.3); } 
+        .rank-1 { color: #ffd700; } 
 
+        /* רשימה */
         ul { list-style: none; padding: 0; margin: 0; }
         li { 
             background: #2a2a2a; margin: 15px 0; padding: 0; 
-            border-radius: 10px; border: 1px solid #444; 
+            border-radius: 4px; border: 1px solid var(--yt-border-color); 
             overflow: hidden; 
         }
-        .song-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #333; }
-        
+        .song-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #303030; }
+        .singer-label { color: var(--yt-secondary-text); font-size: 0.9em; font-weight: bold; display: block; }
         .list-vote-bar { 
-            background: #222; padding: 10px; 
+            background: #212121; padding: 10px; 
             display: flex; justify-content: space-between; align-items: center;
-            border-top: 1px solid #444;
+            border-top: 1px solid var(--yt-border-color);
         }
-        .vote-btn { background: transparent; border: 1px solid #555; color: #888; cursor: pointer; border-radius: 5px; padding: 5px 12px; }
-        .vote-btn.active-up { background: rgba(0,230,118,0.2); color: #00e676; border-color: #00e676; }
-        .vote-btn.active-down { background: rgba(255,68,68,0.2); color: #ff4444; border-color: #ff4444; }
+        .vote-btn { background: transparent; border: none; color: var(--yt-secondary-text); cursor: pointer; padding: 5px; font-size: 20px; }
+        .vote-btn.active-up { color: #00e676; }
+        .vote-btn.active-down { color: #ff4444; }
+        .total-score { font-weight: bold; font-size: 1.1em; margin: 0 10px; }
 
-        #admin-panel { display: none; background: #111; padding: 15px; border-bottom: 2px solid #00e676; }
-        .btn-sort { background: #ff9800; color: black; width: 100%; padding: 12px; border: none; font-weight: bold; border-radius: 8px; margin-top: 10px; cursor: pointer; font-size: 16px; }
-        
         /* כללי */
-        input { padding: 12px; width: 90%; margin-bottom: 10px; background: #333; color: white; border: 1px solid #555; border-radius: 8px; font-size: 16px; }
-        .btn-main { background: #ff0055; color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; }
-        #dj-login-btn { position: fixed; bottom: 10px; left: 10px; background: rgba(255,255,255,0.1); border: 1px solid #333; color: #666; padding: 5px; border-radius: 5px; cursor: pointer; }
+        .btn-sort { background: #3ea6ff; color: black; width: 100%; padding: 10px; border: none; font-weight: bold; border-radius: 2px; cursor: pointer; }
+        .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding-left: 10px; display: none; }
+        input { padding: 10px; width: 90%; margin-bottom: 10px; background: #121212; color: white; border: 1px solid var(--yt-border-color); border-radius: 2px; font-size: 16px; }
+        .btn-main { background: var(--yt-brand-color); color: white; width: 100%; padding: 10px; border: none; border-radius: 2px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        #dj-login-btn { position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.5); border: 1px solid #555; color: #aaa; padding: 5px; border-radius: 2px; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="admin-panel">
-        <h3 style="margin:0; color:#00e676;">🎧 DJ PANEL</h3>
-        
-        <div id="video-wrapper">
-            <div id="player"></div>
-            <div id="chat-overlay-layer"></div>
+        <div class="yt-layout">
+            
+            <div id="video-zone-col">
+                <div id="player-container"><div id="player"></div></div>
+                <div class="admin-controls-bar">
+                    <button class="btn-sort" onclick="sortQueueByRating()">📊 מיין רשימה</button>
+                    <button onclick="stopLive()" style="background:#333; color:white; border:none; padding:10px; width:100%; cursor:pointer; font-weight:bold; border-radius:2px;">⏹ סגור הופעה</button>
+                </div>
+            </div>
+            
+            <div id="chat-zone-col">
+                <div class="chat-header">Live Chat</div>
+                <div id="chat-messages-container">
+                    </div>
+            </div>
         </div>
-        
-        <button class="btn-sort" onclick="sortQueueByRating()">📊 סדר רשימה לפי דירוג</button>
-        <button onclick="stopLive()" style="background:#333; color:white; border:none; padding:8px; margin-top:10px; width:100%; cursor:pointer;">⏹ סגור הופעה חיה</button>
     </div>
 
     <div id="live-stage">
-        <div style="font-size:1.2em; font-weight:bold; color:white;">🎤 מופיע/ה כעת:</div>
-        <div id="live-singer" style="font-size:2em; font-weight:bold; color:#fff; margin:5px 0;">...</div>
-        <div id="live-song" style="font-size:1.2em; color:#aaa; margin-bottom:15px;">...</div>
+        <div style="font-size:1.2em; font-weight:bold;">🔴 בשידור חי:</div>
+        <div id="live-singer" class="live-singer">...</div>
+        <div id="live-song" class="live-song">...</div>
         
-        <button id="live-star-btn" onclick="giveLiveStar()">⭐ תן כוכב למבצע!</button>
+        <button id="live-star-btn" onclick="giveLiveStar()">⭐ פרגן בכוכב!</button>
         <div id="live-score-msg" style="margin-top:5px; color:#ffd700; display:none; font-weight:bold;">ההצבעה נקלטה!</div>
     </div>
 
@@ -178,14 +225,14 @@
     </div>
     <div id="results" class="container-box" style="display:none;"></div>
 
-    <div class="container-box" style="border:1px solid #00e676;">
-        <h3 style="margin:0 0 10px 0; color:#00e676;">💌 שלח הודעה ל-DJ</h3>
-        <input type="text" id="chatMsg" placeholder="כתוב כאן הודעה שתקפוץ במסך...">
-        <button class="btn-main" style="background:#00e676; color:black;" onclick="sendChatToDJ()">שלח הודעה 📨</button>
+    <div class="container-box" style="border:1px solid var(--yt-border-color);">
+        <h3 style="margin:0 0 10px 0; color:var(--yt-secondary-text);">💬 שלח הודעה לצ'אט</h3>
+        <input type="text" id="chatMsg" placeholder="רשום משהו...">
+        <button class="btn-main" style="background:#3ea6ff;" onclick="sendChatToDJ()">שלח 📨</button>
     </div>
 
     <div class="container-box" style="background:transparent; border:none; padding:0;">
-        <h3 style="color:#aaa; text-align:right; margin-right:5px;">רשימת המתנה:</h3>
+        <h3 style="color:var(--yt-secondary-text); text-align:right; margin-right:5px;">רשימת המתנה:</h3>
         <ul id="queue"></ul>
     </div>
 
@@ -193,9 +240,9 @@
 
     <script>
         // ==========================================
-        // 1. הגדרות (מפתחות)
+        // 1. מפתחות
         // ==========================================
-        const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
+       const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -213,7 +260,7 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        // --- שמות קבועים ---
+        // שמות קבועים
         const queueRef = db.ref('karaoke_queue_main');      
         const liveRef = db.ref('karaoke_live_stage'); 
         const chatRef = db.ref('karaoke_chat_messages');
@@ -221,7 +268,7 @@
         let player;
         let isAdmin = false;
         let currentLiveSongKey = null; 
-        let loadTime = Date.now(); // כדי לסנן הודעות היסטוריות
+        let loadTime = Date.now();
 
         let myUserId = localStorage.getItem('karaokeUserId');
         if (!myUserId) {
@@ -235,22 +282,33 @@
         }
 
         // ==========================================
-        // 2. צ'אט בועות (Overlay)
+        // 2. צ'אט בסגנון YouTube Live
         // ==========================================
-        
-        // פונקציה להצגת בועה (גרפית בלבד)
-        function showBubble(msgData) {
-            const overlay = document.getElementById('chat-overlay-layer');
-            const bubble = document.createElement('div');
-            bubble.className = 'chat-bubble';
-            bubble.innerHTML = `<span class="bubble-sender">${msgData.sender}:</span>${msgData.text}`;
+        function showYTMessage(msgData) {
+            const container = document.getElementById('chat-messages-container');
             
-            overlay.appendChild(bubble);
-
-            // מחיקה מה-DOM אחרי שהאנימציה מסתיימת (6 שניות)
-            setTimeout(() => {
-                bubble.remove();
-            }, 6000);
+            // יצירת האלמנטים
+            const bubble = document.createElement('div');
+            bubble.className = 'yt-chat-bubble';
+            
+            // אווטאר (אות ראשונה של השם)
+            const avatar = document.createElement('div');
+            avatar.className = 'yt-avatar';
+            avatar.innerText = msgData.sender.charAt(0).toUpperCase();
+            
+            // תוכן ההודעה
+            const content = document.createElement('div');
+            content.className = 'yt-bubble-content';
+            content.innerHTML = `<span class="bubble-sender">${msgData.sender}</span>${msgData.text}`;
+            
+            bubble.appendChild(avatar);
+            bubble.appendChild(content);
+            
+            // הוספה לצ'אט
+            container.appendChild(bubble);
+            
+            // גלילה אוטומטית למטה
+            container.scrollTop = container.scrollHeight;
         }
 
         function sendChatToDJ() {
@@ -265,11 +323,21 @@
             });
             
             document.getElementById('chatMsg').value = '';
-            alert("ההודעה נשלחה למסך!");
+        }
+
+        // האזנה להודעות (רק לאדמין)
+        function initChatListener() {
+            chatRef.limitToLast(50).on('child_added', snapshot => {
+                const msg = snapshot.val();
+                // מציג רק הודעות חדשות כדי לא להציף בכניסה
+                if (msg.time > loadTime) {
+                    showYTMessage(msg);
+                }
+            });
         }
 
         // ==========================================
-        // 3. אדמין - ניהול, נגן והאזנה לבועות
+        // 3. אדמין ונגן
         // ==========================================
         function adminLogin() {
             if (prompt("סיסמה:") === "21212121") {
@@ -279,7 +347,7 @@
                 document.getElementById('dj-login-btn').style.display = 'none';
                 queueRef.once('value'); 
                 loadPlayer();
-                initChatListener(); // הפעלת האזנה לבועות
+                initChatListener(); 
             }
         }
 
@@ -291,18 +359,6 @@
             initChatListener();
         }
 
-        // מאזין להודעות חדשות בלבד ומקפיץ בועות
-        function initChatListener() {
-            chatRef.on('child_added', snapshot => {
-                const msg = snapshot.val();
-                // מציג רק הודעות שנשלחו אחרי שהדף נטען (כדי לא להציף בהיסטוריה)
-                if (msg.time > loadTime) {
-                    showBubble(msg);
-                }
-            });
-        }
-
-        // נגן יוטיוב
         function loadPlayer() {
             if (!window.YT) {
                 var tag = document.createElement('script');
@@ -312,7 +368,7 @@
             }
         }
         function onYouTubeIframeAPIReady() {
-            if(isAdmin) player = new YT.Player('player', { height: '360', width: '100%', playerVars: { 'autoplay': 1, 'controls': 1 } });
+            if(isAdmin) player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'autoplay': 1, 'controls': 1, 'modestbranding': 1 } });
         }
 
         // ==========================================
@@ -333,7 +389,7 @@
                 if(localStorage.getItem('voted_' + currentLiveSongKey)) {
                      btn.disabled = true; btn.innerText = "נתת כוכב! ⭐"; msg.style.display = 'block';
                 } else {
-                    btn.disabled = false; btn.innerText = "⭐ תן כוכב למבצע!"; msg.style.display = 'none';
+                    btn.disabled = false; btn.innerText = "⭐ פרגן בכוכב!"; msg.style.display = 'none';
                 }
             } else { stage.style.display = 'none'; }
         });
@@ -353,7 +409,6 @@
         queueRef.orderByChild('customOrder').on('value', (snapshot) => {
             const listEl = document.getElementById('queue');
             listEl.innerHTML = '';
-            
             let songs = [];
             let singerScores = {}; 
 
@@ -388,17 +443,17 @@
                             <div class="song-title">${song.title}</div>
                         </div>
                         <div style="display:${isAdmin ? 'flex' : 'none'}; gap:10px;">
-                             <button style="background:#00e676; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;" 
+                             <button style="background:var(--yt-brand-color); border:none; padding:8px 12px; border-radius:2px; cursor:pointer; color:white;" 
                                 onclick="moveToStage('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶</button>
-                             <button style="background:#ff4444; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; color:white;" 
+                             <button style="background:#333; border:1px solid #555; padding:8px 12px; border-radius:2px; cursor:pointer; color:#aaa;" 
                                 onclick="deleteSong('${song.key}')">🗑</button>
                         </div>
                     </div>
                     <div class="list-vote-bar">
-                        <div style="color:#aaa; font-size:0.8em;">הצבעה לרשימה:</div>
+                        <div style="color:var(--yt-secondary-text); font-size:0.8em;">דירוג:</div>
                         <div class="vote-group">
                             <button class="vote-btn ${myListVote === 1 ? 'active-up' : ''}" onclick="voteList('${song.key}', 1)">👍</button>
-                            <span class="total-score" style="color:${listScore > 0 ? '#00e676' : (listScore < 0 ? '#ff4444' : 'white')}">${listScore}</span>
+                            <span class="total-score" style="color:${listScore > 0 ? '#00e676' : (listScore < 0 ? '#ff4444' : 'var(--yt-text-color)')}">${listScore}</span>
                             <button class="vote-btn ${myListVote === -1 ? 'active-down' : ''}" onclick="voteList('${song.key}', -1)">👎</button>
                         </div>
                     </div>
@@ -487,10 +542,10 @@
                 if (data.items) {
                     data.items.forEach(item => {
                         resDiv.innerHTML += `
-                            <div style="background:rgba(255,255,255,0.1); margin:5px 0; padding:10px; display:flex; align-items:center; border-radius:5px;">
+                            <div style="background:var(--yt-chat-bubble-bg); margin:5px 0; padding:10px; display:flex; align-items:center; border-radius:2px;">
                                 <img src="${item.snippet.thumbnails.default.url}" width="60" style="margin-left:10px;">
                                 <div style="flex-grow:1; text-align:right;">${item.snippet.title}</div>
-                                <button class="btn-main" style="width:auto; padding:5px 15px; background:#00e676; color:black; font-size:14px;" 
+                                <button class="btn-main" style="width:auto; padding:5px 15px; background:var(--yt-brand-color); font-size:14px;" 
                                 onclick="add('${item.id.videoId}', '${item.snippet.title.replace(/'/g, "")}')">בחר</button>
                             </div>`;
                     });
@@ -508,4 +563,3 @@
     </script>
 </body>
 </html>
-```
