@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - המערכת המלאה</title>
+    <title>קריוקי - מערכת דירוג מלאה</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -22,11 +22,11 @@
         /* --- במה חיה (LIVE STAGE) --- */
         #live-stage {
             display: none; 
-            background: linear-gradient(180deg, #111, #000);
+            background: linear-gradient(180deg, #1a1a1a, #000);
             border-bottom: 4px solid #00e676;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0, 230, 118, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 230, 118, 0.15);
         }
 
         .live-badge { background: #ff0055; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9em; display: inline-block; margin-bottom: 10px; animation: pulse 2s infinite; }
@@ -35,7 +35,7 @@
         
         #live-star-btn {
             background: gold; color: black; font-size: 18px; font-weight: bold;
-            padding: 10px 30px; border: none; border-radius: 50px; cursor: pointer;
+            padding: 12px 30px; border: none; border-radius: 50px; cursor: pointer;
             box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); transition: transform 0.1s;
         }
         #live-star-btn:active { transform: scale(0.95); }
@@ -77,7 +77,7 @@
         .song-title { font-size: 1.1em; color: white; }
 
         .list-vote-bar { 
-            background: #222; padding: 8px; 
+            background: #222; padding: 10px; 
             display: flex; justify-content: space-between; align-items: center;
             border-top: 1px solid #444;
         }
@@ -108,7 +108,7 @@
         <h3 style="margin:0; color:#00e676;">🎧 DJ PANEL</h3>
         <div id="player-container"><div id="player"></div></div>
         
-        <button class="btn-sort" onclick="sortQueueByRating()">📊 סדר רשימה לפי דירוג</button>
+        <button class="btn-sort" onclick="sortQueueByRating()">📊 מיין רשימת המתנה לפי לייקים</button>
         <button onclick="stopLive()" style="background:#333; color:white; border:none; padding:8px; margin-top:10px; width:100%; cursor:pointer;">⏹ סגור הופעה חיה</button>
     </div>
 
@@ -117,14 +117,15 @@
         <div id="live-singer" class="live-singer">...</div>
         <div id="live-song" class="live-song">...</div>
         
-        <button id="live-star-btn" onclick="giveLiveStar()">⭐ תן כוכב לביצוע!</button>
-        <div id="live-msg" style="margin-top:5px; color:#ffd700; display:none; font-weight:bold;">ההצבעה נקלטה!</div>
+        <button id="live-star-btn" onclick="giveLiveStar()">⭐ תן כוכב למבצע!</button>
+        <div id="live-score-msg" style="margin-top:5px; color:#ffd700; display:none; font-weight:bold;">ההצבעה נקלטה!</div>
     </div>
 
     <div class="container-box">
         <h3 style="margin:0; color:#ffd700;">🏆 טבלת המבצעים</h3>
+        <div style="font-size:0.8em; color:#aaa; margin-bottom:5px;">(כולל לייקים ברשימה + כוכבים בהופעה)</div>
         <table>
-            <thead><tr><th>#</th><th>זמר/ת</th><th>ניקוד כולל</th></tr></thead>
+            <thead><tr><th>#</th><th>זמר/ת</th><th>ניקוד</th></tr></thead>
             <tbody id="leaderboard-body"></tbody>
         </table>
     </div>
@@ -147,7 +148,7 @@
         // ==========================================
         // 1. מפתחות - להדביק כאן!
         // ==========================================
-        const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
+              const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -161,11 +162,10 @@
             measurementId: "G-SN8MNYFCH6"
         };
 
-
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        // --- שמות קבועים שלא ישתנו יותר ---
+        // --- שמות קבועים ---
         const queueRef = db.ref('karaoke_queue_main');      
         const liveRef = db.ref('karaoke_live_stage'); 
 
@@ -173,6 +173,7 @@
         let isAdmin = false;
         let currentLiveSongKey = null; 
 
+        // זיהוי משתמש
         let myUserId = localStorage.getItem('karaokeUserId');
         if (!myUserId) {
             myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -185,13 +186,13 @@
         }
 
         // ==========================================
-        // 2. ניהול ה"במה" (למעלה)
+        // 2. ניהול ה"במה" (Live Stage)
         // ==========================================
         liveRef.on('value', snapshot => {
             const data = snapshot.val();
             const stage = document.getElementById('live-stage');
             const btn = document.getElementById('live-star-btn');
-            const msg = document.getElementById('live-msg');
+            const msg = document.getElementById('live-score-msg');
             
             if (data && data.active) {
                 stage.style.display = 'block';
@@ -199,32 +200,39 @@
                 document.getElementById('live-song').innerText = data.song;
                 currentLiveSongKey = data.originalSongKey; 
 
-                // בדיקה מקומית אם הצבעתי הרגע
-                if(localStorage.getItem('voted_' + currentLiveSongKey)) {
-                     btn.disabled = true;
-                     btn.innerText = "נתת כוכב! ⭐";
-                     msg.style.display = 'block';
-                } else {
-                    btn.disabled = false;
-                    btn.innerText = "⭐ תן כוכב לביצוע!";
-                    msg.style.display = 'none';
-                }
+                // בדיקה אם המשתמש כבר נתן כוכב לשיר הזה ספציפית
+                checkIfVotedOnStage(currentLiveSongKey, btn, msg);
 
             } else {
                 stage.style.display = 'none';
             }
         });
 
-        // כפתור כוכב בבמה = שווה ערך ללייק ברשימה
+        // בדיקה מול הדאטה בייס האם המשתמש כבר נתן כוכב
+        function checkIfVotedOnStage(songKey, btn, msg) {
+            queueRef.child(songKey).child('stageStars').child(myUserId).once('value', snapshot => {
+                if(snapshot.exists()) {
+                    btn.disabled = true;
+                    btn.innerText = "נתת כוכב! ⭐";
+                    msg.style.display = 'block';
+                } else {
+                    btn.disabled = false;
+                    btn.innerText = "⭐ תן כוכב למבצע!";
+                    msg.style.display = 'none';
+                }
+            });
+        }
+
+        // הענקת כוכב דרך הבמה (נשמר תחת השיר המקורי!)
         function giveLiveStar() {
             if (!currentLiveSongKey) return;
-            voteList(currentLiveSongKey, 1); 
+            // שמירת ההצבעה בנתיב מיוחד 'stageStars' בתוך השיר
+            queueRef.child(currentLiveSongKey).child('stageStars').child(myUserId).set(1);
             
-            localStorage.setItem('voted_' + currentLiveSongKey, true);
-            
+            // עדכון UI מיידי
             document.getElementById('live-star-btn').disabled = true;
             document.getElementById('live-star-btn').innerText = "נתת כוכב! ⭐";
-            document.getElementById('live-msg').style.display = 'block';
+            document.getElementById('live-score-msg').style.display = 'block';
         }
 
         // ==========================================
@@ -235,28 +243,35 @@
             listEl.innerHTML = '';
             
             let songs = [];
-            let singerScores = {}; 
+            let singerScores = {}; // אגרגציה של ניקוד לזמרים
 
             snapshot.forEach(child => { songs.push({ key: child.key, ...child.val() }); });
             songs.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
 
             songs.forEach(song => {
-                // חישוב ניקוד לשיר
-                let score = 0;
-                let myVote = 0; 
+                // 1. חישוב לייקים/בוז ברשימה (List Votes)
+                let listScore = 0;
+                let myListVote = 0; 
                 if (song.listVotes) {
                     Object.entries(song.listVotes).forEach(([uid, val]) => {
-                        score += val;
-                        if (uid === myUserId) myVote = val;
+                        listScore += val;
+                        if (uid === myUserId) myListVote = val;
                     });
                 }
-                
-                // צבירת ניקוד לזמר עבור הטבלה
-                const singer = song.addedBy || "אורח";
-                if (!singerScores[singer]) singerScores[singer] = 0;
-                singerScores[singer] += score;
 
-                // בניית הרשימה
+                // 2. חישוב כוכבי במה (Stage Stars)
+                let stageScore = 0;
+                if (song.stageStars) {
+                    // כל כוכב שווה 1
+                    stageScore = Object.keys(song.stageStars).length;
+                }
+                
+                // 3. עדכון הטבלה (סה"כ = לייקים + כוכבים)
+                const singer = (song.addedBy || "אורח").trim(); // מנקה רווחים
+                if (!singerScores[singer]) singerScores[singer] = 0;
+                singerScores[singer] += (listScore + stageScore);
+
+                // 4. בניית ה-HTML
                 const li = document.createElement('li');
                 li.setAttribute('data-key', song.key);
 
@@ -277,27 +292,16 @@
                     </div>
                     
                     <div class="list-vote-bar">
-                        <div style="color:#aaa; font-size:0.8em;">דירוג:</div>
+                        <div style="color:#aaa; font-size:0.8em;">הצבעה לרשימה:</div>
                         <div class="vote-group">
-                            <button class="vote-btn ${myVote === 1 ? 'active-up' : ''}" onclick="voteList('${song.key}', 1)">👍</button>
-                            <span class="total-score" style="color:${score > 0 ? '#00e676' : (score < 0 ? '#ff4444' : 'white')}">${score}</span>
-                            <button class="vote-btn ${myVote === -1 ? 'active-down' : ''}" onclick="voteList('${song.key}', -1)">👎</button>
+                            <button class="vote-btn ${myListVote === 1 ? 'active-up' : ''}" onclick="voteList('${song.key}', 1)">👍</button>
+                            <span class="total-score" style="color:${listScore > 0 ? '#00e676' : (listScore < 0 ? '#ff4444' : 'white')}">${listScore}</span>
+                            <button class="vote-btn ${myListVote === -1 ? 'active-down' : ''}" onclick="voteList('${song.key}', -1)">👎</button>
                         </div>
                     </div>
                 `;
                 li.innerHTML = html;
                 listEl.appendChild(li);
-                
-                // עדכון כפתור הבמה אם זה השיר שמופיע כרגע
-                if (currentLiveSongKey === song.key && myVote === 1) {
-                    const stageBtn = document.getElementById('live-star-btn');
-                    const msg = document.getElementById('live-msg');
-                    if(stageBtn) {
-                        stageBtn.disabled = true;
-                        stageBtn.innerText = "נתת כוכב! ⭐";
-                        msg.style.display = 'block';
-                    }
-                }
             });
 
             // עדכון הטבלה למעלה
@@ -306,7 +310,7 @@
             if(isAdmin) document.querySelectorAll('.drag-handle').forEach(el => el.style.display = 'block');
         });
 
-        // פונקציה לעדכון טבלת המובילים ב-HTML
+        // פונקציה לעדכון טבלת המובילים
         function updateLeaderboard(scoresObj) {
             const tbody = document.getElementById('leaderboard-body');
             tbody.innerHTML = '';
@@ -315,7 +319,6 @@
                 .map(([name, score]) => ({ name, score }))
                 .sort((a, b) => b.score - a.score);
 
-            // מציגים את הטופ 5
             sortedSingers.slice(0, 5).forEach((singer, index) => {
                 let rankClass = '';
                 let icon = '';
@@ -334,12 +337,12 @@
             });
         }
 
-        // הצבעה לשיר ברשימה
+        // הצבעה לשיר ברשימה (לייק/בוז)
         function voteList(songKey, value) {
             queueRef.child(songKey).child('listVotes').child(myUserId).transaction(curr => curr === value ? null : value);
         }
 
-        // מיון הרשימה (אדמין)
+        // מיון הרשימה (אדמין) - ממיין לפי לייקים ברשימה בלבד!
         function sortQueueByRating() {
             if(!isAdmin) return;
             if(!confirm("לסדר לפי פופולריות?")) return;
@@ -348,12 +351,14 @@
                 let songsArr = [];
                 snapshot.forEach(child => {
                     let song = { key: child.key, ...child.val() };
-                    let total = 0;
-                    if(song.listVotes) Object.values(song.listVotes).forEach(v => total += v);
-                    song.calcScore = total;
+                    let listTotal = 0;
+                    if(song.listVotes) Object.values(song.listVotes).forEach(v => listTotal += v);
+                    song.calcScore = listTotal;
                     songsArr.push(song);
                 });
+                // מיון: ציון גבוה למעלה
                 songsArr.sort((a, b) => b.calcScore - a.calcScore);
+                
                 let updates = {};
                 songsArr.forEach((song, index) => { updates[`${song.key}/customOrder`] = index; });
                 queueRef.update(updates);
