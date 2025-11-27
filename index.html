@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת קריוקי חברתי</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <style>
+        body { font-family: sans-serif; background: #222; color: white; text-align: center; margin: 0; padding: 20px; }
+        input { padding: 10px; width: 70%; font-size: 16px; border-radius: 5px; border: none; }
+        button { padding: 10px 20px; font-size: 16px; background: #ff0055; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 5px; }
+        
+        #player-container { margin: 20px auto; max-width: 800px; background: #000; display: none; }
+        
+        .song-item { background: #333; margin: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .song-item img { width: 50px; height: auto; margin-left: 10px; }
+        
+        #queue-list { list-style: none; padding: 0; max-width: 600px; margin: 20px auto; text-align: right; }
+        #search-results { max-width: 600px; margin: 20px auto; text-align: right; }
+        
+        h2 { border-bottom: 2px solid #ff0055; display: inline-block; padding-bottom: 5px; }
+        
+        /* עיצוב לכפתור הוספה */
+        .add-btn { background: #28a745; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <h1>🎤 ערב קריוקי</h1>
+
+    <button onclick="startHosting()">אני המסך הראשי (הפעל נגן)</button>
+    <div id="player-container">
+        <div id="player"></div>
+        <h3>מתנגן כעת: <span id="current-song-name">ממתין...</span></h3>
+    </div>
+
+    <hr>
+
+    <div>
+        <h3>הוסף שיר לתור</h3>
+        <input type="text" id="searchInput" placeholder="חפש שיר או זמר...">
+        <button onclick="searchSong()">חפש</button>
+    </div>
+
+    <div id="search-results"></div>
+
+    <h2>רשימת השירים הבאים בתור</h2>
+    <ul id="queue-list"></ul>
+
+    <script>
+        // --- הגדרות ---
+        const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_API_KEY_HERE'; // *** הכנס כאן את מפתח היוטיוב שלך ***
+        
+        const firebaseConfig = {
+            // *** הכנס כאן את ה-Config מ-Firebase ***
+            apiKey: "AIzaSyD...",
+            authDomain: "project.firebaseapp.com",
+            databaseURL: "https://project-id.firebaseio.com",
+            projectId: "project-id",
+            storageBucket: "project.appspot.com",
+            messagingSenderId: "123...",
+            appId: "1:123..."
+        };
+
+        // אתחול Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const queueRef = db.ref('queue');
+
+        let player;
+        let isHost = false;
+        let currentSongKey = null;
+
+        // --- חיפוש ביוטיוב ---
+        async function searchSong() {
+            const query = document.getElementById('searchInput').value + " karaoke"; // הוספה אוטומטית של קריוקי
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(query)}&type=video&key=${YOUTUBE_API_KEY}`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.innerHTML = '';
+
+            if(data.items) {
+                data.items.forEach(item => {
+                    const title = item.snippet.title;
+                    const videoId = item.id.videoId;
+                    const thumb = item.snippet.thumbnails.default.url;
+
+                    const div = document.createElement('div');
+                    div.className = 'song-item';
+                    div.innerHTML = `
+                        <div style="display:flex; align-items:center;">
+                            <img src="${thumb}">
+                            <span>${title}</span>
+                        </div>
+                        <button class="add-btn" onclick="addToQueue('${videoId}', '${title.replace(/'/g, "")}')">הוסף +</button>
+                    `;
+                    resultsDiv.appendChild(div);
+                });
+            }
+        }
+
+        // --- הוספה לתור ---
+        function addToQueue(id, title) {
+            queueRef.push({
+                videoId: id,
+                title: title,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+            document.getElementById('search-results').innerHTML = '<p style="color:#28a745; text-align:center;">השיר נוסף בהצלחה!</p>';
+            document.getElementById('searchInput').value = '';
+        }
+
+        // --- האזנה לשינויים בתור (Realtime) ---
+        queueRef.on('value', (snapshot) => {
+            const list = document.getElementById('queue-list');
+            list.innerHTML = '';
+            const songs = [];
+            
+            snapshot.forEach(child => {
+                songs.push({ key: child.key, ...child.val() });
+            });
+
+            // אם אנחנו המארח ואין שיר מנגן, ויש שירים בתור - נגן את הראשון
+            if (isHost && player && player.getPlayerState() !== 1 && player.getPlayerState() !== 3 && songs.length > 0) {
+                 playNextSong(songs[0]);
+            }
+
+            // הצגת התור (בלי השיר שמתנגן כרגע אם יש כזה)
+            songs.forEach(song => {
+                if (song.key !== currentSongKey) { 
+                    const li = document.createElement('li');
+                    li.className = 'song-item';
+                    li.innerHTML = `<span>🎵 ${song.title}</span>`;
+                    list.appendChild(li);
+                }
+            });
+        });
+
+        // --- נגן יוטיוב (רק למארח) ---
+        function startHosting() {
+            isHost = true;
+            document.getElementById('player-container').style.display = 'block';
+            
+            // טעינת ה-API של הנגן
+            var tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            var firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '390',
+                width: '640',
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function playNextSong(song) {
+            currentSongKey = song.key;
+            document.getElementById('current-song-name').innerText = song.title;
+            player.loadVideoById(song.videoId);
+            
+            // מחיקת השיר מהתור בדאטהבייס כדי שלא יתנגן שוב
+            // הערה: במערכת מושלמת מוחקים רק כשהשיר מסתיים, כאן למען הפשטות המחיקה מתבצעת בכניסה לנגן
+             queueRef.child(song.key).remove();
+        }
+
+        function onPlayerStateChange(event) {
+            // 0 אומר שהשיר נגמר
+            if (event.data === 0) {
+                currentSongKey = null;
+                // בודק אוטומטית אם יש עוד שיר בתור דרך המאזין של Firebase
+            }
+        }
+    </script>
+</body>
+</html>
