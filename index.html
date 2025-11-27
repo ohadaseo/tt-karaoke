@@ -3,56 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מערכת קריוקי חברתי</title>
+    <title>קריוקי חברתי - עם שמות</title>
+    
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     
     <style>
-        body { font-family: sans-serif; background: #222; color: white; text-align: center; margin: 0; padding: 20px; }
-        input { padding: 10px; width: 70%; font-size: 16px; border-radius: 5px; border: none; }
-        button { padding: 10px 20px; font-size: 16px; background: #ff0055; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 5px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; text-align: center; margin: 0; padding: 10px; }
         
-        #player-container { margin: 20px auto; max-width: 800px; background: #000; display: none; }
+        /* אזור הנגן - רק למחשב */
+        #host-area { display: none; background: #1e1e1e; padding: 20px; border-radius: 10px; border: 1px solid #333; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .skip-btn { background: #ffc107; color: black; font-weight: bold; width: 100%; padding: 15px; border: none; font-size: 18px; cursor: pointer; margin-top: 10px; border-radius: 5px; }
+        #now-playing-text { color: #ff0055; font-size: 1.5em; display: block; margin: 10px 0; }
+
+        /* כפתור הפעלה ראשוני */
+        .setup-btn { background: #007bff; color: white; padding: 20px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; width: 100%; margin-bottom: 20px; }
+
+        /* אזור הוספת שירים */
+        .input-group { margin-bottom: 15px; }
+        input { padding: 12px; width: 90%; font-size: 16px; margin-bottom: 10px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; }
+        .search-btn { padding: 12px; background: #ff0055; color: white; border: none; font-size: 18px; width: 95%; border-radius: 5px; cursor: pointer; }
+
+        /* רשימת השירים */
+        ul { list-style: none; padding: 0; max-width: 600px; margin: 20px auto; }
+        li { background: #2a2a2a; margin: 8px 0; padding: 12px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; border-right: 4px solid #ff0055; }
         
-        .song-item { background: #333; margin: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
-        .song-item img { width: 50px; height: auto; margin-left: 10px; }
+        .song-details { text-align: right; }
+        .singer-name { color: #ff0055; font-weight: bold; font-size: 0.9em; display: block; }
+        .song-title { font-size: 1.1em; }
+
+        .delete-btn { background: transparent; color: #aaa; border: 1px solid #555; padding: 5px 10px; cursor: pointer; border-radius: 50%; font-size: 14px; }
+        .add-btn { background: #28a745; color: white; border: none; padding: 8px 20px; cursor: pointer; border-radius: 5px; margin-top: 5px; }
         
-        #queue-list { list-style: none; padding: 0; max-width: 600px; margin: 20px auto; text-align: right; }
-        #search-results { max-width: 600px; margin: 20px auto; text-align: right; }
-        
-        h2 { border-bottom: 2px solid #ff0055; display: inline-block; padding-bottom: 5px; }
-        
-        /* עיצוב לכפתור הוספה */
-        .add-btn { background: #28a745; font-size: 12px; }
+        /* תוצאות חיפוש */
+        .result-item { background: #1e1e1e; padding: 10px; margin: 10px 0; border-radius: 5px; display: flex; flex-direction: column; align-items: center; }
     </style>
 </head>
 <body>
 
-    <h1>🎤 ערב קריוקי</h1>
+    <button id="setup-btn" class="setup-btn" onclick="activateHost()">📺 לחץ כאן אם זה המחשב בטלוויזיה</button>
 
-    <button onclick="startHosting()">אני המסך הראשי (הפעל נגן)</button>
-    <div id="player-container">
-        <div id="player"></div>
-        <h3>מתנגן כעת: <span id="current-song-name">ממתין...</span></h3>
+    <div id="host-area">
+        <div id="player"></div> <div>מתנגן כעת: <span id="now-playing-text">...</span></div>
+        <button class="skip-btn" onclick="playNext()">⏭ דלג לשיר הבא / התחל לנגן</button>
     </div>
 
-    <hr>
-
-    <div>
-        <h3>הוסף שיר לתור</h3>
-        <input type="text" id="searchInput" placeholder="חפש שיר או זמר...">
-        <button onclick="searchSong()">חפש</button>
-    </div>
-
-    <div id="search-results"></div>
-
-    <h2>רשימת השירים הבאים בתור</h2>
-    <ul id="queue-list"></ul>
-
-    <script>
-        // --- הגדרות ---
-        const YOUTUBE_API_KEY = 'AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA'; // *** הכנס כאן את מפתח היוטיוב שלך ***
+    <div style="background: #1e1e1e; padding: 15px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
+        <h3 style="margin-top: 0;">הוספת שיר</h3>
         
+        <input type="text" id="userName" placeholder="מי שר? (למשל: דני)" onchange="saveName()">
+        
+        <input type="text" id="searchIn" placeholder="איזה שיר לחפש?">
+        
+        <button class="search-btn" onclick="doSearch()">חפש שיר 🔍</button>
+    </div>
+
+    <div id="results"></div>
+
+    <h3 style="margin-top: 30px;">רשימת המתנה:</h3>
+    <ul id="queue"></ul>
+
+  <script>
+        // ==========================================
+        // 1. הגדרות - וודא שהמפתחות כאן נכונים!
+        // ==========================================
+        const YOUTUBE_API_KEY = 'AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA'; // *** הכנס כאן את מפתח היוטיוב שלך ***
+                
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
             apiKey: "AIzaSyB3wOy7kFxXOPA1a8zWZmtlakXe7oXOsv0",
@@ -65,120 +81,149 @@
             measurementId: "G-SN8MNYFCH6"
         };
 
+
         // אתחול Firebase
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const queueRef = db.ref('queue');
+        const queueRef = db.ref('simpleQueue');
 
         let player;
         let isHost = false;
-        let currentSongKey = null;
+        let queueData = []; 
 
-        // --- חיפוש ביוטיוב ---
-        async function searchSong() {
-            const query = document.getElementById('searchInput').value + " karaoke"; // הוספה אוטומטית של קריוקי
-            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(query)}&type=video&key=${YOUTUBE_API_KEY}`;
-            
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            const resultsDiv = document.getElementById('search-results');
-            resultsDiv.innerHTML = '';
+        // טעינת שם משתמש אחרון מהזיכרון
+        document.getElementById('userName').value = localStorage.getItem('karaokeName') || '';
 
-            if(data.items) {
-                data.items.forEach(item => {
-                    const title = item.snippet.title;
-                    const videoId = item.id.videoId;
-                    const thumb = item.snippet.thumbnails.default.url;
-
-                    const div = document.createElement('div');
-                    div.className = 'song-item';
-                    div.innerHTML = `
-                        <div style="display:flex; align-items:center;">
-                            <img src="${thumb}">
-                            <span>${title}</span>
-                        </div>
-                        <button class="add-btn" onclick="addToQueue('${videoId}', '${title.replace(/'/g, "")}')">הוסף +</button>
-                    `;
-                    resultsDiv.appendChild(div);
-                });
-            }
+        function saveName() {
+            localStorage.setItem('karaokeName', document.getElementById('userName').value);
         }
 
-        // --- הוספה לתור ---
-        function addToQueue(id, title) {
-            queueRef.push({
-                videoId: id,
-                title: title,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-            document.getElementById('search-results').innerHTML = '<p style="color:#28a745; text-align:center;">השיר נוסף בהצלחה!</p>';
-            document.getElementById('searchInput').value = '';
-        }
-
-        // --- האזנה לשינויים בתור (Realtime) ---
+        // ==========================================
+        // 2. ניהול תור בזמן אמת
+        // ==========================================
         queueRef.on('value', (snapshot) => {
-            const list = document.getElementById('queue-list');
-            list.innerHTML = '';
-            const songs = [];
-            
+            const listEl = document.getElementById('queue');
+            listEl.innerHTML = '';
+            queueData = []; 
+
             snapshot.forEach(child => {
-                songs.push({ key: child.key, ...child.val() });
-            });
+                const song = { key: child.key, ...child.val() };
+                queueData.push(song);
 
-            // אם אנחנו המארח ואין שיר מנגן, ויש שירים בתור - נגן את הראשון
-            if (isHost && player && player.getPlayerState() !== 1 && player.getPlayerState() !== 3 && songs.length > 0) {
-                 playNextSong(songs[0]);
-            }
-
-            // הצגת התור (בלי השיר שמתנגן כרגע אם יש כזה)
-            songs.forEach(song => {
-                if (song.key !== currentSongKey) { 
-                    const li = document.createElement('li');
-                    li.className = 'song-item';
-                    li.innerHTML = `<span>🎵 ${song.title}</span>`;
-                    list.appendChild(li);
-                }
+                const li = document.createElement('li');
+                const singer = song.addedBy || "אורח";
+                
+                li.innerHTML = `
+                    <div class="song-details">
+                        <span class="singer-name">${singer} שר/ה:</span>
+                        <span class="song-title">${song.title}</span>
+                    </div>
+                    <button class="delete-btn" onclick="removeSong('${song.key}')">X</button>
+                `;
+                listEl.appendChild(li);
             });
         });
 
-        // --- נגן יוטיוב (רק למארח) ---
-        function startHosting() {
-            isHost = true;
-            document.getElementById('player-container').style.display = 'block';
+        function removeSong(key) {
+            if(confirm("למחוק את השיר?")) {
+                queueRef.child(key).remove();
+            }
+        }
+
+        // ==========================================
+        // 3. חיפוש והוספה
+        // ==========================================
+        async function doSearch() {
+            const q = document.getElementById('searchIn').value;
+            const name = document.getElementById('userName').value;
+
+            if (!q) { alert("צריך לכתוב שם של שיר!"); return; }
+            if (!name) { alert("צריך לכתוב מי שר!"); return; }
             
-            // טעינת ה-API של הנגן
-            var tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            var firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            saveName(); 
+
+            // התיקון: שימוש במשתנה הנכון YOUTUBE_API_KEY
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${q} karaoke&key=${YOUTUBE_API_KEY}`;
+            
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                const resDiv = document.getElementById('results');
+                resDiv.innerHTML = '';
+                
+                if (data.items) {
+                    data.items.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'result-item';
+                        div.innerHTML = `
+                            <img src="${item.snippet.thumbnails.default.url}" style="width:120px; border-radius:5px;">
+                            <span style="margin:5px 0;">${item.snippet.title}</span>
+                            <button class="add-btn" onclick="add('${item.id.videoId}', '${item.snippet.title.replace(/'/g, "")}')">בחר את השיר הזה</button>
+                        `;
+                        resDiv.appendChild(div);
+                    });
+                } else if (data.error) {
+                    console.error(data.error);
+                    alert("שגיאת יוטיוב: " + data.error.message);
+                }
+            } catch(e) {
+                console.error(e);
+                alert("שגיאה בחיפוש. וודא שהמפתחות שמורים בקובץ.");
+            }
+        }
+
+        function add(id, title) {
+            const name = document.getElementById('userName').value;
+            queueRef.push({ 
+                videoId: id, 
+                title: title,
+                addedBy: name 
+            });
+            document.getElementById('results').innerHTML = '<p style="color:green; font-size:18px;">✅ השיר נוסף בהצלחה!</p>';
+            document.getElementById('searchIn').value = '';
+        }
+
+        // ==========================================
+        // 4. נגן (Host)
+        // ==========================================
+        function activateHost() {
+            isHost = true;
+            document.getElementById('setup-btn').style.display = 'none';
+            document.getElementById('host-area').style.display = 'block';
+
+            if (!window.YT) { // בדיקה למניעת טעינה כפולה
+                var tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                var firstScriptTag = document.getElementsByTagName('script')[0];
+                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            }
         }
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('player', {
-                height: '390',
-                width: '640',
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
+                height: '360',
+                width: '100%',
+                playerVars: { 'autoplay': 1, 'controls': 1 },
+                events: { 'onStateChange': onPlayerStateChange }
             });
         }
 
-        function playNextSong(song) {
-            currentSongKey = song.key;
-            document.getElementById('current-song-name').innerText = song.title;
-            player.loadVideoById(song.videoId);
-            
-            // מחיקת השיר מהתור בדאטהבייס כדי שלא יתנגן שוב
-            // הערה: במערכת מושלמת מוחקים רק כשהשיר מסתיים, כאן למען הפשטות המחיקה מתבצעת בכניסה לנגן
-             queueRef.child(song.key).remove();
+        function onPlayerStateChange(event) {
+            if (event.data === 0) playNext(); 
         }
 
-        function onPlayerStateChange(event) {
-            // 0 אומר שהשיר נגמר
-            if (event.data === 0) {
-                currentSongKey = null;
-                // בודק אוטומטית אם יש עוד שיר בתור דרך המאזין של Firebase
+        function playNext() {
+            if (queueData.length > 0) {
+                const nextSong = queueData[0];
+                const singer = nextSong.addedBy || "אורח";
+
+                player.loadVideoById(nextSong.videoId);
+                document.getElementById('now-playing-text').innerText = `${nextSong.title} (שר: ${singer})`;
+                
+                queueRef.child(nextSong.key).remove();
+            } else {
+                alert("אין עוד שירים בתור!");
             }
         }
     </script>
