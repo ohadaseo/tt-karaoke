@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - שליטה מרחוק</title>
+    <title>קריוקי - גרסה מהירה ונקייה</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -22,12 +22,10 @@
 
         /* --- נגן היוטיוב (רק למקרן!) --- */
         #player-wrapper {
-            display: none; /* מוסתר לכולם כברירת מחדל */
+            display: none; 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 100;
         }
-        
-        /* רק במצב מקרן הנגן מופיע */
         body.mode-projector #player-wrapper { display: block; }
         #player { width: 100%; height: 100%; }
 
@@ -44,7 +42,7 @@
         }
 
         .chat-bubble {
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             color: white; padding: 15px 25px; margin-top: 15px;
             border-radius: 30px; border-left: 6px solid #00e676;
             font-size: 28px; font-weight: bold; text-align: right;
@@ -60,10 +58,11 @@
             100% { opacity: 0; transform: translateY(-50px); }
         }
 
+        /* פרטי זמר במקרן */
         #projector-info {
             position: absolute; top: 30px; right: 30px;
             text-align: right; text-shadow: 2px 2px 4px #000;
-            background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px;
+            background: rgba(0,0,0,0.6); padding: 20px; border-radius: 10px;
         }
         #p-singer { font-size: 3em; font-weight: bold; color: #ffd700; display: block; }
         #p-song { font-size: 1.8em; color: #fff; }
@@ -99,23 +98,15 @@
         /* רשימה */
         ul { list-style: none; padding: 0; margin: 0; }
         li { background: #2a2a2a; margin: 10px 0; padding: 0; border-radius: 10px; border: 1px solid #444; overflow: hidden; }
-        .song-header { padding: 10px; display: flex; justify-content: space-between; align-items: center; background: #333; }
+        .song-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; }
         .song-info { text-align: right; flex-grow: 1; }
         .singer-label { color: #00e676; font-size: 0.9em; font-weight: bold; display: block; }
         
-        .list-vote-bar { background: #222; padding: 8px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #444; }
-        .vote-btn { background: transparent; border: 1px solid #555; color: #888; cursor: pointer; border-radius: 5px; padding: 5px 12px; }
-        .vote-btn.active-up { background: rgba(0,230,118,0.2); color: #00e676; border-color: #00e676; }
-        .vote-btn.active-down { background: rgba(255,68,68,0.2); color: #ff4444; border-color: #ff4444; }
-        .total-score { font-weight: bold; font-size: 1.1em; color: white; min-width: 30px; }
-
         /* כפתורי אדמין בתוך שיר */
         .admin-flex-group { display: none; gap: 10px; }
         body.mode-admin .admin-flex-group { display: flex; }
         .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding-left: 10px; display: none; }
         body.mode-admin .drag-handle { display: block; }
-
-        .btn-sort { background: gold; color: black; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; margin-top: 5px; cursor: pointer; border: none; }
 
         /* פוטר כפתורים */
         #footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; padding: 10px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #333; z-index: 900; }
@@ -148,7 +139,6 @@
             <div id="admin-now-playing" class="playing-indicator">ממתין לבחירה...</div>
         </div>
 
-        <button class="btn-sort" onclick="sortQueueByRating()">📊 מיין רשימה לפי לייקים</button>
         <button onclick="stopLive()" style="background:red; color:white; border:none; padding:12px; width:100%; margin-top:10px; border-radius:5px; cursor:pointer; font-weight:bold;">⏹ עצור שידור למקרן</button>
     </div>
 
@@ -288,12 +278,16 @@
         }
 
         function sendChat() {
+            const name = document.getElementById('userName').value;
             const msg = document.getElementById('chatMsg').value;
-            const name = document.getElementById('userName').value || "אורח";
+            
+            // בדיקה ששם הוזן!
+            if (!name) { alert("חובה להכניס את השם שלך למעלה!"); return; }
             if (!msg) return;
+            
             chatRef.push({ sender: name, text: msg, time: Date.now() });
             document.getElementById('chatMsg').value = '';
-            alert("נשלח!");
+            // אין התראה (פופאפ) כבקשתך
         }
 
         function initChatListener() {
@@ -334,9 +328,7 @@
                 if (pSinger) pSinger.innerText = data.singer;
                 if (pSong) pSong.innerText = data.song;
 
-                // בדיקה: אם אנחנו המקרן - ננגן!
                 if (currentMode === 'projector' && player && player.loadVideoById) {
-                    // בדיקה קטנה שלא נטען אותו שיר שוב ושוב
                     if(player.getVideoData && player.getVideoData().video_id !== data.videoId) {
                         player.loadVideoById(data.videoId);
                     }
@@ -373,7 +365,7 @@
         }
 
         // ==========================================
-        // 5. רשימה וטבלה
+        // 5. רשימה נקייה + טבלה
         // ==========================================
         queueRef.orderByChild('customOrder').on('value', (snapshot) => {
             const listEl = document.getElementById('queue');
@@ -386,17 +378,7 @@
             songs.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
 
             songs.forEach(song => {
-                // חישוב ניקוד לרשימה
-                let listScore = 0;
-                let myListVote = 0; 
-                if (song.listVotes) {
-                    Object.entries(song.listVotes).forEach(([uid, val]) => {
-                        listScore += val;
-                        if (uid === myUserId) myListVote = val;
-                    });
-                }
-
-                // חישוב כוכבים (לטבלה בלבד)
+                // אין חישוב לייקים לרשימה! רק כוכבי במה לטבלה
                 let stageScore = 0;
                 if (song.stageStars) stageScore = Object.keys(song.stageStars).length;
                 
@@ -415,18 +397,10 @@
                             <div class="song-title">${song.title}</div>
                         </div>
                         <div class="admin-flex-group" style="gap:10px;">
-                             <button style="background:#00e676; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; color:black; font-weight:bold;" 
-                                onclick="sendToProjector('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶ לבמה</button>
-                             <button style="background:#ff4444; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; color:white;" 
+                             <button style="background:#00e676; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; color:black; font-weight:bold;" 
+                                onclick="moveToStage('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶ לבמה</button>
+                             <button style="background:#ff4444; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; color:white;" 
                                 onclick="deleteSong('${song.key}')">🗑</button>
-                        </div>
-                    </div>
-                    <div class="list-vote-bar">
-                        <div style="color:#aaa; font-size:0.8em;">הצבעה לרשימה:</div>
-                        <div class="vote-group">
-                            <button class="vote-btn ${myListVote === 1 ? 'active-up' : ''}" onclick="voteList('${song.key}', 1)">👍</button>
-                            <span class="total-score" style="color:${listScore > 0 ? '#00e676' : (listScore < 0 ? '#ff4444' : 'white')}">${listScore}</span>
-                            <button class="vote-btn ${myListVote === -1 ? 'active-down' : ''}" onclick="voteList('${song.key}', -1)">👎</button>
                         </div>
                     </div>
                 `;
@@ -447,39 +421,22 @@
             });
         }
 
-        function voteList(songKey, value) {
-            queueRef.child(songKey).child('listVotes').child(myUserId).transaction(curr => curr === value ? null : value);
-        }
-
-        // --- פונקציות אדמין ---
-        function sortQueueByRating() {
-            if(!confirm("לסדר לפי לייקים?")) return;
-            queueRef.once('value', snapshot => {
-                let songsArr = [];
-                snapshot.forEach(child => {
-                    let song = { key: child.key, ...child.val() };
-                    let listTotal = 0;
-                    if(song.listVotes) Object.values(song.listVotes).forEach(v => listTotal += v);
-                    song.calcScore = listTotal;
-                    songsArr.push(song);
-                });
-                songsArr.sort((a, b) => b.calcScore - a.calcScore);
-                let updates = {};
-                songsArr.forEach((song, index) => { updates[`${song.key}/customOrder`] = index; });
-                queueRef.update(updates);
-            });
-        }
-
-        // זה הטריגר! האדמין לוחץ כאן -> המידע נשלח לפיירבייס -> המקרן קולט ומנגן
-        function sendToProjector(key, videoId, title, singer) {
+        // ==========================================
+        // 6. פעולות אדמין (הפעלה + מחיקה אוטומטית)
+        // ==========================================
+        function moveToStage(key, videoId, title, singer) {
+            // עדכון הבמה והמקרן
             liveRef.set({ 
                 active: true, 
                 song: title, 
                 singer: singer, 
-                videoId: videoId, // חובה לשלוח את ה-ID למקרן
+                videoId: videoId, 
                 originalSongKey: key, 
                 timestamp: Date.now() 
             });
+            
+            // מחיקה מיידית מהרשימה!
+            queueRef.child(key).remove();
         }
 
         function stopLive() { liveRef.update({ active: false }); }
@@ -500,11 +457,13 @@
             }
         });
 
-        // חיפוש
+        // ==========================================
+        // 7. חיפוש
+        // ==========================================
         async function doSearch() {
             const input = document.getElementById('searchIn').value;
             const name = document.getElementById('userName').value;
-            if (!input || !name) { alert("חסר שם או שיר"); return; }
+            if (!input || !name) { alert("חובה למלא שם ושיר"); return; }
             localStorage.setItem('karaokeName', name);
             const resDiv = document.getElementById('results');
             resDiv.style.display = 'block'; resDiv.innerHTML = 'טוען...';
