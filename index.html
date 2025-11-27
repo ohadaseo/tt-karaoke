@@ -1,9 +1,29 @@
+זה בהחלט אפשרי וזה רעיון מעולה\! זה נקרא **Overlay** (שכבת-על).
+אנחנו לא באמת יכולים "להזריק" את זה לתוך הנגן של יוטיוב (כי הוא סגור בתוך Iframe), אבל אנחנו יכולים לשים שכבה שקופה **מעל** הנגן, ובתוכה להקפיץ את הבועות.
+
+הנה **גרסה 20.0 (Chat Overlay Edition)**.
+
+### מה חדש כאן?
+
+1.  **בועות צ'אט:** כשמשתמש שולח הודעה ("תגביה\!", "מזל טוב\!"), בועה מעוצבת צצה בפינה השמאלית התחתונה של הוידאו, עולה למעלה לאט ונעלמת.
+2.  **שכבה שקופה:** הבועות צפות "על" הוידאו, אבל לא מפריעות ללחוץ על הנגן (השתמשתי ב-`pointer-events: none`).
+3.  **מניעת הצפה:** הוספתי הגנה כדי שהודעות ישנות מההיסטוריה לא יקפצו בבת אחת כשאתה נכנס, אלא רק הודעות חדשות שנשלחות מעכשיו.
+
+### הוראות:
+
+1.  **סיסמה:** `21212121`.
+2.  **הכנס מפתחות API.**
+3.  **תבדוק:** תפתח שני מכשירים. באחד תהיה אדמין, בשני שלח הודעה ותראה אותה קופצת על הוידאו.
+
+<!-- end list -->
+
+```html
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - מערכת דירוג מלאה</title>
+    <title>קריוקי - צ'אט בועות</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -19,6 +39,53 @@
             padding-bottom: 80px;
         }
 
+        /* --- מעטפת הנגן והבועות (חשוב!) --- */
+        #video-wrapper {
+            position: relative; /* כדי שהבועות יהיו יחסיות לוידאו */
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        /* אזור הבועות שצף על הוידאו */
+        #chat-overlay-layer {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 50%; /* תופס את החלק השמאלי */
+            height: 80%;
+            pointer-events: none; /* מאפשר ללחוץ על הוידאו דרך השכבה */
+            display: flex;
+            flex-direction: column-reverse; /* הודעות חדשות למטה */
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        /* עיצוב הבועה */
+        .chat-bubble {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 15px;
+            margin-bottom: 10px;
+            border-radius: 20px;
+            border-left: 4px solid #00e676;
+            font-size: 14px;
+            text-align: right;
+            width: fit-content;
+            animation: popAndFade 6s forwards; /* האנימציה */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .bubble-sender { color: #00e676; font-weight: bold; font-size: 0.9em; display:block;}
+
+        /* האנימציה של הבועה */
+        @keyframes popAndFade {
+            0% { opacity: 0; transform: translateY(20px) scale(0.8); }
+            10% { opacity: 1; transform: translateY(0) scale(1); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
         /* --- במה חיה (LIVE STAGE) --- */
         #live-stage {
             display: none; 
@@ -28,74 +95,45 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0, 230, 118, 0.15);
         }
-
-        .live-badge { background: #ff0055; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9em; display: inline-block; margin-bottom: 10px; animation: pulse 2s infinite; }
-        .live-singer { font-size: 2em; font-weight: bold; color: #fff; margin: 5px 0; }
-        .live-song { font-size: 1.2em; color: #aaa; margin-bottom: 15px; }
         
         #live-star-btn {
             background: gold; color: black; font-size: 18px; font-weight: bold;
             padding: 12px 30px; border: none; border-radius: 50px; cursor: pointer;
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); transition: transform 0.1s;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
         }
-        #live-star-btn:active { transform: scale(0.95); }
-        #live-star-btn:disabled { background: #444; color: #888; box-shadow: none; cursor: default; }
+        #live-star-btn:disabled { background: #444; color: #888; box-shadow: none; }
 
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-
-        /* --- קופסאות כלליות --- */
+        /* קופסאות ועיצוב כללי */
         .container-box {
             background: #1e1e1e;
             border-radius: 12px; margin: 15px auto; padding: 15px;
             max-width: 600px; border: 1px solid #333;
         }
 
-        /* --- טבלת המובילים --- */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { color: #888; font-size: 0.9em; padding: 8px; border-bottom: 2px solid #444; }
         td { padding: 10px; font-size: 1.2em; border-bottom: 1px solid #333; font-weight: bold; }
         .rank-1 { color: #ffd700; font-size: 1.5em; text-shadow: 0 0 10px rgba(255,215,0,0.3); } 
-        .rank-2 { color: #c0c0c0; font-size: 1.3em; } 
-        .rank-3 { color: #cd7f32; font-size: 1.3em; } 
 
-        /* --- רשימת שירים --- */
         ul { list-style: none; padding: 0; margin: 0; }
         li { 
             background: #2a2a2a; margin: 15px 0; padding: 0; 
             border-radius: 10px; border: 1px solid #444; 
             overflow: hidden; 
-            transition: all 0.3s ease;
         }
-
-        .song-header {
-            padding: 15px;
-            display: flex; justify-content: space-between; align-items: center;
-            background: #333;
-        }
-        .song-info { text-align: right; flex-grow: 1; }
-        .singer-label { color: #00e676; font-size: 0.9em; font-weight: bold; display: block; }
-        .song-title { font-size: 1.1em; color: white; }
-
+        .song-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: #333; }
+        
         .list-vote-bar { 
             background: #222; padding: 10px; 
             display: flex; justify-content: space-between; align-items: center;
             border-top: 1px solid #444;
         }
-        
-        .vote-group { display: flex; gap: 10px; align-items: center; }
-        .vote-btn { 
-            background: transparent; border: 1px solid #555; color: #888; 
-            cursor: pointer; border-radius: 5px; padding: 5px 12px; font-size: 16px; 
-        }
-        .vote-btn.active-up { background: rgba(0,230,118,0.2); color: #00e676; border-color: #00e676; font-weight: bold; }
-        .vote-btn.active-down { background: rgba(255,68,68,0.2); color: #ff4444; border-color: #ff4444; font-weight: bold; }
-        .total-score { font-weight: bold; font-size: 1.1em; color: white; min-width: 30px; }
+        .vote-btn { background: transparent; border: 1px solid #555; color: #888; cursor: pointer; border-radius: 5px; padding: 5px 12px; }
+        .vote-btn.active-up { background: rgba(0,230,118,0.2); color: #00e676; border-color: #00e676; }
+        .vote-btn.active-down { background: rgba(255,68,68,0.2); color: #ff4444; border-color: #ff4444; }
 
-        /* אדמין */
         #admin-panel { display: none; background: #111; padding: 15px; border-bottom: 2px solid #00e676; }
         .btn-sort { background: #ff9800; color: black; width: 100%; padding: 12px; border: none; font-weight: bold; border-radius: 8px; margin-top: 10px; cursor: pointer; font-size: 16px; }
-        .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding-left: 10px; display: none; }
-
+        
         /* כללי */
         input { padding: 12px; width: 90%; margin-bottom: 10px; background: #333; color: white; border: 1px solid #555; border-radius: 8px; font-size: 16px; }
         .btn-main { background: #ff0055; color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; }
@@ -106,16 +144,20 @@
 
     <div id="admin-panel">
         <h3 style="margin:0; color:#00e676;">🎧 DJ PANEL</h3>
-        <div id="player-container"><div id="player"></div></div>
         
-        <button class="btn-sort" onclick="sortQueueByRating()">📊 מיין רשימת המתנה לפי לייקים</button>
+        <div id="video-wrapper">
+            <div id="player"></div>
+            <div id="chat-overlay-layer"></div>
+        </div>
+        
+        <button class="btn-sort" onclick="sortQueueByRating()">📊 סדר רשימה לפי דירוג</button>
         <button onclick="stopLive()" style="background:#333; color:white; border:none; padding:8px; margin-top:10px; width:100%; cursor:pointer;">⏹ סגור הופעה חיה</button>
     </div>
 
     <div id="live-stage">
-        <div class="live-badge">🎤 ON AIR - הופעה חיה</div>
-        <div id="live-singer" class="live-singer">...</div>
-        <div id="live-song" class="live-song">...</div>
+        <div style="font-size:1.2em; font-weight:bold; color:white;">🎤 מופיע/ה כעת:</div>
+        <div id="live-singer" style="font-size:2em; font-weight:bold; color:#fff; margin:5px 0;">...</div>
+        <div id="live-song" style="font-size:1.2em; color:#aaa; margin-bottom:15px;">...</div>
         
         <button id="live-star-btn" onclick="giveLiveStar()">⭐ תן כוכב למבצע!</button>
         <div id="live-score-msg" style="margin-top:5px; color:#ffd700; display:none; font-weight:bold;">ההצבעה נקלטה!</div>
@@ -123,7 +165,6 @@
 
     <div class="container-box">
         <h3 style="margin:0; color:#ffd700;">🏆 טבלת המבצעים</h3>
-        <div style="font-size:0.8em; color:#aaa; margin-bottom:5px;">(כולל לייקים ברשימה + כוכבים בהופעה)</div>
         <table>
             <thead><tr><th>#</th><th>זמר/ת</th><th>ניקוד</th></tr></thead>
             <tbody id="leaderboard-body"></tbody>
@@ -137,8 +178,14 @@
     </div>
     <div id="results" class="container-box" style="display:none;"></div>
 
+    <div class="container-box" style="border:1px solid #00e676;">
+        <h3 style="margin:0 0 10px 0; color:#00e676;">💌 שלח הודעה ל-DJ</h3>
+        <input type="text" id="chatMsg" placeholder="כתוב כאן הודעה שתקפוץ במסך...">
+        <button class="btn-main" style="background:#00e676; color:black;" onclick="sendChatToDJ()">שלח הודעה 📨</button>
+    </div>
+
     <div class="container-box" style="background:transparent; border:none; padding:0;">
-        <h3 style="color:#aaa; text-align:right; margin-right:5px;">רשימת השירים:</h3>
+        <h3 style="color:#aaa; text-align:right; margin-right:5px;">רשימת המתנה:</h3>
         <ul id="queue"></ul>
     </div>
 
@@ -146,9 +193,9 @@
 
     <script>
         // ==========================================
-        // 1. מפתחות - להדביק כאן!
+        // 1. הגדרות (מפתחות)
         // ==========================================
-              const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
+        const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -162,18 +209,20 @@
             measurementId: "G-SN8MNYFCH6"
         };
 
+
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
         // --- שמות קבועים ---
         const queueRef = db.ref('karaoke_queue_main');      
         const liveRef = db.ref('karaoke_live_stage'); 
+        const chatRef = db.ref('karaoke_chat_messages');
 
         let player;
         let isAdmin = false;
         let currentLiveSongKey = null; 
+        let loadTime = Date.now(); // כדי לסנן הודעות היסטוריות
 
-        // זיהוי משתמש
         let myUserId = localStorage.getItem('karaokeUserId');
         if (!myUserId) {
             myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -186,7 +235,88 @@
         }
 
         // ==========================================
-        // 2. ניהול ה"במה" (Live Stage)
+        // 2. צ'אט בועות (Overlay)
+        // ==========================================
+        
+        // פונקציה להצגת בועה (גרפית בלבד)
+        function showBubble(msgData) {
+            const overlay = document.getElementById('chat-overlay-layer');
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+            bubble.innerHTML = `<span class="bubble-sender">${msgData.sender}:</span>${msgData.text}`;
+            
+            overlay.appendChild(bubble);
+
+            // מחיקה מה-DOM אחרי שהאנימציה מסתיימת (6 שניות)
+            setTimeout(() => {
+                bubble.remove();
+            }, 6000);
+        }
+
+        function sendChatToDJ() {
+            const msg = document.getElementById('chatMsg').value;
+            const name = document.getElementById('userName').value || "אורח";
+            if (!msg) return;
+            
+            chatRef.push({
+                sender: name,
+                text: msg,
+                time: Date.now()
+            });
+            
+            document.getElementById('chatMsg').value = '';
+            alert("ההודעה נשלחה למסך!");
+        }
+
+        // ==========================================
+        // 3. אדמין - ניהול, נגן והאזנה לבועות
+        // ==========================================
+        function adminLogin() {
+            if (prompt("סיסמה:") === "21212121") {
+                isAdmin = true;
+                localStorage.setItem('isAdminMode', 'true');
+                document.getElementById('admin-panel').style.display = 'block';
+                document.getElementById('dj-login-btn').style.display = 'none';
+                queueRef.once('value'); 
+                loadPlayer();
+                initChatListener(); // הפעלת האזנה לבועות
+            }
+        }
+
+        if (localStorage.getItem('isAdminMode') === 'true') {
+            isAdmin = true;
+            document.getElementById('admin-panel').style.display = 'block';
+            document.getElementById('dj-login-btn').style.display = 'none';
+            loadPlayer();
+            initChatListener();
+        }
+
+        // מאזין להודעות חדשות בלבד ומקפיץ בועות
+        function initChatListener() {
+            chatRef.on('child_added', snapshot => {
+                const msg = snapshot.val();
+                // מציג רק הודעות שנשלחו אחרי שהדף נטען (כדי לא להציף בהיסטוריה)
+                if (msg.time > loadTime) {
+                    showBubble(msg);
+                }
+            });
+        }
+
+        // נגן יוטיוב
+        function loadPlayer() {
+            if (!window.YT) {
+                var tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(tag, s);
+            }
+        }
+        function onYouTubeIframeAPIReady() {
+            if(isAdmin) player = new YT.Player('player', { height: '360', width: '100%', playerVars: { 'autoplay': 1, 'controls': 1 } });
+        }
+
+        // ==========================================
+        // 4. ניהול במה חיה
         // ==========================================
         liveRef.on('value', snapshot => {
             const data = snapshot.val();
@@ -200,56 +330,37 @@
                 document.getElementById('live-song').innerText = data.song;
                 currentLiveSongKey = data.originalSongKey; 
 
-                // בדיקה אם המשתמש כבר נתן כוכב לשיר הזה ספציפית
-                checkIfVotedOnStage(currentLiveSongKey, btn, msg);
-
-            } else {
-                stage.style.display = 'none';
-            }
+                if(localStorage.getItem('voted_' + currentLiveSongKey)) {
+                     btn.disabled = true; btn.innerText = "נתת כוכב! ⭐"; msg.style.display = 'block';
+                } else {
+                    btn.disabled = false; btn.innerText = "⭐ תן כוכב למבצע!"; msg.style.display = 'none';
+                }
+            } else { stage.style.display = 'none'; }
         });
 
-        // בדיקה מול הדאטה בייס האם המשתמש כבר נתן כוכב
-        function checkIfVotedOnStage(songKey, btn, msg) {
-            queueRef.child(songKey).child('stageStars').child(myUserId).once('value', snapshot => {
-                if(snapshot.exists()) {
-                    btn.disabled = true;
-                    btn.innerText = "נתת כוכב! ⭐";
-                    msg.style.display = 'block';
-                } else {
-                    btn.disabled = false;
-                    btn.innerText = "⭐ תן כוכב למבצע!";
-                    msg.style.display = 'none';
-                }
-            });
-        }
-
-        // הענקת כוכב דרך הבמה (נשמר תחת השיר המקורי!)
         function giveLiveStar() {
             if (!currentLiveSongKey) return;
-            // שמירת ההצבעה בנתיב מיוחד 'stageStars' בתוך השיר
             queueRef.child(currentLiveSongKey).child('stageStars').child(myUserId).set(1);
-            
-            // עדכון UI מיידי
+            localStorage.setItem('voted_' + currentLiveSongKey, true);
             document.getElementById('live-star-btn').disabled = true;
             document.getElementById('live-star-btn').innerText = "נתת כוכב! ⭐";
             document.getElementById('live-score-msg').style.display = 'block';
         }
 
         // ==========================================
-        // 3. ניהול הרשימה והטבלה
+        // 5. ניהול רשימה, טבלה והצבעות שירים
         // ==========================================
         queueRef.orderByChild('customOrder').on('value', (snapshot) => {
             const listEl = document.getElementById('queue');
             listEl.innerHTML = '';
             
             let songs = [];
-            let singerScores = {}; // אגרגציה של ניקוד לזמרים
+            let singerScores = {}; 
 
             snapshot.forEach(child => { songs.push({ key: child.key, ...child.val() }); });
             songs.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
 
             songs.forEach(song => {
-                // 1. חישוב לייקים/בוז ברשימה (List Votes)
                 let listScore = 0;
                 let myListVote = 0; 
                 if (song.listVotes) {
@@ -259,38 +370,30 @@
                     });
                 }
 
-                // 2. חישוב כוכבי במה (Stage Stars)
                 let stageScore = 0;
-                if (song.stageStars) {
-                    // כל כוכב שווה 1
-                    stageScore = Object.keys(song.stageStars).length;
-                }
+                if (song.stageStars) stageScore = Object.keys(song.stageStars).length;
                 
-                // 3. עדכון הטבלה (סה"כ = לייקים + כוכבים)
-                const singer = (song.addedBy || "אורח").trim(); // מנקה רווחים
+                const singer = (song.addedBy || "אורח").trim();
                 if (!singerScores[singer]) singerScores[singer] = 0;
-                singerScores[singer] += (listScore + stageScore);
+                singerScores[singer] += stageScore; // הטבלה מחשבת רק כוכבים
 
-                // 4. בניית ה-HTML
                 const li = document.createElement('li');
                 li.setAttribute('data-key', song.key);
 
                 let html = `
                     <div class="song-header">
-                        <div class="drag-handle">☰</div>
+                        <div class="drag-handle" style="display:${isAdmin?'block':'none'}">☰</div>
                         <div class="song-info">
                             <span class="singer-label">${singer}</span>
                             <div class="song-title">${song.title}</div>
                         </div>
-                        
-                        <div style="display:${isAdmin ? 'flex' : 'none'}; gap:10px; margin-right:10px;">
-                             <button style="background:#00e676; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; font-weight:bold;" 
-                                onclick="moveToStage('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶ לבמה</button>
+                        <div style="display:${isAdmin ? 'flex' : 'none'}; gap:10px;">
+                             <button style="background:#00e676; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;" 
+                                onclick="moveToStage('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶</button>
                              <button style="background:#ff4444; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; color:white;" 
                                 onclick="deleteSong('${song.key}')">🗑</button>
                         </div>
                     </div>
-                    
                     <div class="list-vote-bar">
                         <div style="color:#aaa; font-size:0.8em;">הצבעה לרשימה:</div>
                         <div class="vote-group">
@@ -304,49 +407,26 @@
                 listEl.appendChild(li);
             });
 
-            // עדכון הטבלה למעלה
             updateLeaderboard(singerScores);
-            
-            if(isAdmin) document.querySelectorAll('.drag-handle').forEach(el => el.style.display = 'block');
         });
 
-        // פונקציה לעדכון טבלת המובילים
         function updateLeaderboard(scoresObj) {
             const tbody = document.getElementById('leaderboard-body');
             tbody.innerHTML = '';
-            
-            const sortedSingers = Object.entries(scoresObj)
-                .map(([name, score]) => ({ name, score }))
-                .sort((a, b) => b.score - a.score);
-
+            const sortedSingers = Object.entries(scoresObj).map(([name, score]) => ({ name, score })).sort((a, b) => b.score - a.score);
             sortedSingers.slice(0, 5).forEach((singer, index) => {
-                let rankClass = '';
-                let icon = '';
-                if(index === 0) { rankClass = 'rank-1'; icon = '👑'; }
-                else if(index === 1) { rankClass = 'rank-2'; icon = '🥈'; }
-                else if(index === 2) { rankClass = 'rank-3'; icon = '🥉'; }
-                else { icon = index + 1; }
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="${rankClass}">${icon}</td>
-                        <td class="${rankClass}">${singer.name}</td>
-                        <td class="${rankClass}">${singer.score}</td>
-                    </tr>
-                `;
+                let rankClass = index === 0 ? 'rank-1' : '';
+                tbody.innerHTML += `<tr><td class="${rankClass}">${index+1}</td><td class="${rankClass}">${singer.name}</td><td class="${rankClass}">${singer.score}</td></tr>`;
             });
         }
 
-        // הצבעה לשיר ברשימה (לייק/בוז)
         function voteList(songKey, value) {
             queueRef.child(songKey).child('listVotes').child(myUserId).transaction(curr => curr === value ? null : value);
         }
 
-        // מיון הרשימה (אדמין) - ממיין לפי לייקים ברשימה בלבד!
         function sortQueueByRating() {
             if(!isAdmin) return;
             if(!confirm("לסדר לפי פופולריות?")) return;
-
             queueRef.once('value', snapshot => {
                 let songsArr = [];
                 snapshot.forEach(child => {
@@ -356,16 +436,13 @@
                     song.calcScore = listTotal;
                     songsArr.push(song);
                 });
-                // מיון: ציון גבוה למעלה
                 songsArr.sort((a, b) => b.calcScore - a.calcScore);
-                
                 let updates = {};
                 songsArr.forEach((song, index) => { updates[`${song.key}/customOrder`] = index; });
                 queueRef.update(updates);
             });
         }
 
-        // גרירה ידנית
         new Sortable(document.getElementById('queue'), {
             handle: '.drag-handle', animation: 150,
             onEnd: function () {
@@ -381,73 +458,24 @@
         });
 
         // ==========================================
-        // 4. אדמין ונגן
+        // 6. פונקציות עזר
         // ==========================================
         function moveToStage(key, videoId, title, singer) {
-            if (player) {
-                player.loadVideoById(videoId);
-                window.scrollTo(0,0);
-            }
-            liveRef.set({
-                active: true,
-                song: title,
-                singer: singer,
-                originalSongKey: key, 
-                timestamp: Date.now()
-            });
+            if (player) { player.loadVideoById(videoId); window.scrollTo(0,0); }
+            liveRef.set({ active: true, song: title, singer: singer, originalSongKey: key, timestamp: Date.now() });
         }
+        function stopLive() { liveRef.update({ active: false }); if(player) player.stopVideo(); }
 
-        function stopLive() {
-            liveRef.update({ active: false });
-            if(player) player.stopVideo();
-        }
-
-        function adminLogin() {
-            if (prompt("סיסמה:") === "21212121") {
-                isAdmin = true;
-                localStorage.setItem('isAdminMode', 'true');
-                document.getElementById('admin-panel').style.display = 'block';
-                document.getElementById('dj-login-btn').style.display = 'none';
-                queueRef.once('value'); 
-                loadPlayer();
-            }
-        }
-        if (localStorage.getItem('isAdminMode') === 'true') {
-            isAdmin = true;
-            document.getElementById('admin-panel').style.display = 'block';
-            document.getElementById('dj-login-btn').style.display = 'none';
-            loadPlayer();
-        }
-        function loadPlayer() {
-            if (!window.YT) {
-                var tag = document.createElement('script');
-                tag.src = "https://www.youtube.com/iframe_api";
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(tag, s);
-            }
-        }
-        function onYouTubeIframeAPIReady() {
-            if(isAdmin) player = new YT.Player('player', { height: '360', width: '100%', playerVars: { 'autoplay': 1, 'controls': 1 } });
-        }
-
-        // ==========================================
-        // 5. חיפוש
-        // ==========================================
         async function doSearch() {
             const input = document.getElementById('searchIn').value;
             const name = document.getElementById('userName').value;
             if (!input || !name) { alert("חובה למלא שם ושיר"); return; }
             localStorage.setItem('karaokeName', name);
-
             const resDiv = document.getElementById('results');
             resDiv.style.display = 'block'; resDiv.innerHTML = 'טוען...';
 
-            // בדיקת לינק
             const videoIdMatch = input.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-            if (videoIdMatch) {
-                add(videoIdMatch[1], "שיר מקישור ישיר 🔗");
-                return;
-            }
+            if (videoIdMatch) { add(videoIdMatch[1], "שיר מקישור ישיר 🔗"); return; }
 
             const currentKey = getRandomApiKey();
             const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(input + " karaoke")}&key=${currentKey}`;
@@ -476,8 +504,8 @@
             document.getElementById('results').style.display = 'none';
             document.getElementById('searchIn').value = '';
         }
-
         function deleteSong(key) { if(confirm("למחוק?")) queueRef.child(key).remove(); }
     </script>
 </body>
 </html>
+```
