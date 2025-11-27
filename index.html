@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - מערכת משולבת</title>
+    <title>קריוקי - מערכת מלאה ומתוקנת</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -21,7 +20,7 @@
             overflow-x: hidden;
         }
 
-        /* --- נגן היוטיוב (משותף לכולם) --- */
+        /* --- נגן היוטיוב --- */
         #player-wrapper {
             background: #000;
             width: 100%;
@@ -31,7 +30,7 @@
             position: relative;
         }
         
-        /* מצב מקרן: נגן על כל המסך */
+        /* מצב מקרן: מסך מלא */
         body.mode-projector #player-wrapper {
             display: block;
             max-width: 100%;
@@ -40,7 +39,7 @@
         }
         body.mode-projector #player { height: 100%; }
 
-        /* מצב אדמין: נגן רגיל למעלה */
+        /* מצב אדמין: נגן למעלה */
         body.mode-admin #player-wrapper {
             display: block;
             border-bottom: 3px solid #00e676;
@@ -50,12 +49,11 @@
         #projector-overlay {
             display: none;
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* לא חוסם לחיצות */
+            pointer-events: none; 
             z-index: 200;
         }
         body.mode-projector #projector-overlay { display: block; }
 
-        /* אזור הבועות (צד שמאל) */
         #chat-bubbles-area {
             position: absolute; bottom: 50px; left: 20px;
             width: 400px; max-width: 40%;
@@ -79,7 +77,7 @@
             100% { opacity: 0; transform: translateY(-50px); }
         }
 
-        /* מידע על הזמר במקרן */
+        /* פרטי זמר במקרן */
         #projector-info {
             position: absolute; top: 20px; right: 20px;
             text-align: right; text-shadow: 2px 2px 4px #000;
@@ -87,18 +85,25 @@
         #p-singer { font-size: 3em; font-weight: bold; color: white; display: block; }
         #p-song { font-size: 1.5em; color: #ddd; }
 
-        /* --- ממשק אדמין (הישן והטוב) --- */
-        #admin-controls { display: none; padding: 15px; background: #1a1a1a; }
-        body.mode-admin #admin-controls { display: block; }
+        /* --- אלמנטים שמופיעים רק לאדמין (CSS Magic) --- */
+        .admin-only-btn { display: none !important; }
+        body.mode-admin .admin-only-btn { display: inline-block !important; }
         
-        .btn-sort { background: gold; color: black; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; margin-top: 10px; cursor: pointer; border: none; }
+        .admin-flex-group { display: none !important; }
+        body.mode-admin .admin-flex-group { display: flex !important; gap: 10px; }
+
         .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding-left: 10px; display: none; }
         body.mode-admin .drag-handle { display: block; }
-        body.mode-admin .admin-btn-group { display: flex; } /* מציג כפתורי מחיקה/נגן */
 
-        /* --- ממשק אורח (ברירת מחדל) --- */
+        /* פאנל שליטה אדמין */
+        #admin-controls { display: none; padding: 15px; background: #1a1a1a; border-bottom: 1px solid #333; }
+        body.mode-admin #admin-controls { display: block; }
+        
+        .btn-sort { background: gold; color: black; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; margin-top: 5px; cursor: pointer; border: none; }
+
+        /* --- ממשק אורח (מוסתר במקרן) --- */
         #guest-view { padding: 15px; transition: opacity 0.5s; }
-        body.mode-projector #guest-view { display: none; } /* מוסתר במקרן */
+        body.mode-projector #guest-view { display: none; } 
         
         /* במה חיה (למשתמשים) */
         #live-stage-user {
@@ -118,14 +123,15 @@
         ul { list-style: none; padding: 0; margin: 0; }
         li { background: #2a2a2a; margin: 10px 0; padding: 0; border-radius: 10px; border: 1px solid #444; overflow: hidden; }
         .song-header { padding: 10px; display: flex; justify-content: space-between; align-items: center; background: #333; }
-        .singer-label { color: #00e676; font-size: 0.9em; font-weight: bold; }
+        .song-info { text-align: right; flex-grow: 1; }
+        .singer-label { color: #00e676; font-size: 0.9em; font-weight: bold; display: block; }
         .list-vote-bar { background: #222; padding: 8px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #444; }
         .vote-btn { background: transparent; border: 1px solid #555; color: #888; cursor: pointer; border-radius: 5px; padding: 5px 12px; }
         .vote-btn.active-up { background: rgba(0,230,118,0.2); color: #00e676; border-color: #00e676; }
         .vote-btn.active-down { background: rgba(255,68,68,0.2); color: #ff4444; border-color: #ff4444; }
         
         /* פוטר כפתורים */
-        #footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; padding: 10px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #333; }
+        #footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; padding: 10px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #333; z-index: 900; }
         .mode-btn { background: #333; color: #aaa; border: 1px solid #444; padding: 5px 15px; cursor: pointer; border-radius: 5px; }
         
         /* טבלה */
@@ -149,9 +155,9 @@
     </div>
 
     <div id="admin-controls">
-        <h3 style="margin:0; color:#00e676;">🎧 פאנל ניהול</h3>
+        <h3 style="margin:0; color:#00e676;">🎧 ניהול קריוקי</h3>
         <button class="btn-sort" onclick="sortQueueByRating()">📊 מיין רשימה לפי לייקים</button>
-        <button onclick="stopLive()" style="background:red; color:white; border:none; padding:8px; width:100%; margin-top:5px; border-radius:5px; cursor:pointer;">⏹ עצור הופעה חיה</button>
+        <button onclick="stopLive()" style="background:red; color:white; border:none; padding:10px; width:100%; margin-top:10px; border-radius:5px; cursor:pointer; font-weight:bold;">⏹ עצור הופעה חיה</button>
     </div>
 
     <div id="guest-view">
@@ -193,14 +199,14 @@
     <div id="footer-controls">
         <button class="mode-btn" onclick="loginMode('admin')">Admin</button>
         <button class="mode-btn" onclick="loginMode('projector')">Projector</button>
-        <button class="mode-btn" onclick="location.reload()">Guest (Exit)</button>
+        <button class="mode-btn" onclick="location.reload()">Guest</button>
     </div>
 
     <script>
         // ==========================================
         // 1. מפתחות
         // ==========================================
-        const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
+       const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -218,12 +224,13 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
+        // שמות קבועים
         const queueRef = db.ref('karaoke_queue_main');      
         const liveRef = db.ref('karaoke_live_stage'); 
         const chatRef = db.ref('karaoke_chat_messages');
 
         let player;
-        let currentMode = 'guest'; // guest, admin, projector
+        let currentMode = 'guest'; 
         let currentLiveSongKey = null; 
         let loadTime = Date.now();
 
@@ -239,7 +246,7 @@
         }
 
         // ==========================================
-        // 2. ניהול מצבים (אורח / אדמין / מקרן)
+        // 2. ניהול מצבים (Login)
         // ==========================================
         function loginMode(mode) {
             if (mode === 'guest') {
@@ -251,7 +258,7 @@
                 document.body.className = 'mode-' + mode;
                 currentMode = mode;
                 
-                // טעינת נגן ורכיבים רלוונטים
+                // טעינת הנגן
                 if (!window.YT) {
                     var tag = document.createElement('script');
                     tag.src = "https://www.youtube.com/iframe_api";
@@ -262,7 +269,7 @@
                 }
 
                 if (mode === 'projector') {
-                    initChatListener(); // רק המקרן מקשיב לבועות
+                    initChatListener(); 
                 }
             } else {
                 alert("סיסמה שגויה");
@@ -270,7 +277,6 @@
         }
 
         function onYouTubeIframeAPIReady() {
-            // טוען נגן רק אם אנחנו אדמין או מקרן
             if (currentMode !== 'guest') {
                 player = new YT.Player('player', {
                     height: '360', width: '100%',
@@ -297,7 +303,7 @@
             if (!msg) return;
             chatRef.push({ sender: name, text: msg, time: Date.now() });
             document.getElementById('chatMsg').value = '';
-            alert("נשלח!");
+            alert("ההודעה נשלחה למסך!");
         }
 
         function initChatListener() {
@@ -321,18 +327,15 @@
             const pSong = document.getElementById('p-song');
 
             if (data && data.active) {
-                // הצגת מידע
                 stageUser.style.display = 'block';
                 document.getElementById('live-singer-u').innerText = data.singer;
                 document.getElementById('live-song-u').innerText = data.song;
                 
-                // עדכון מקרן
-                pSinger.innerText = data.singer;
-                pSong.innerText = data.song;
+                if(pSinger) pSinger.innerText = data.singer;
+                if(pSong) pSong.innerText = data.song;
 
                 currentLiveSongKey = data.originalSongKey; 
 
-                // בדיקת הצבעה
                 if(localStorage.getItem('voted_' + currentLiveSongKey)) {
                      btn.disabled = true; btn.innerText = "נתת כוכב! ⭐";
                 } else {
@@ -340,8 +343,8 @@
                 }
             } else {
                 stageUser.style.display = 'none';
-                pSinger.innerText = "";
-                pSong.innerText = "";
+                if(pSinger) pSinger.innerText = "";
+                if(pSong) pSong.innerText = "";
             }
         });
 
@@ -367,7 +370,6 @@
             songs.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
 
             songs.forEach(song => {
-                // חישוב ניקוד לרשימה
                 let listScore = 0;
                 let myListVote = 0; 
                 if (song.listVotes) {
@@ -377,28 +379,28 @@
                     });
                 }
 
-                // חישוב כוכבים (לטבלה בלבד)
                 let stageScore = 0;
                 if (song.stageStars) stageScore = Object.keys(song.stageStars).length;
                 
                 const singer = (song.addedBy || "אורח").trim();
                 if (!singerScores[singer]) singerScores[singer] = 0;
-                singerScores[singer] += stageScore; // טבלה = רק כוכבים מהופעות
+                singerScores[singer] += stageScore; 
 
                 const li = document.createElement('li');
                 li.setAttribute('data-key', song.key);
 
+                // כאן התיקון הקריטי לאדמין
                 let html = `
                     <div class="song-header">
-                        <div class="drag-handle" style="display:none;">☰</div>
+                        <div class="drag-handle">☰</div>
                         <div class="song-info">
                             <span class="singer-label">${singer}</span>
                             <div class="song-title">${song.title}</div>
                         </div>
-                        <div class="admin-btn-group" style="display:none; gap:10px;">
-                             <button style="background:#00e676; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;" 
+                        <div class="admin-flex-group" style="gap:10px;">
+                             <button style="background:#00e676; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; color:black; font-weight:bold;" 
                                 onclick="moveToStage('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶ לבמה</button>
-                             <button style="background:#ff4444; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; color:white;" 
+                             <button style="background:#ff4444; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; color:white;" 
                                 onclick="deleteSong('${song.key}')">🗑</button>
                         </div>
                     </div>
@@ -413,12 +415,6 @@
                 `;
                 li.innerHTML = html;
                 listEl.appendChild(li);
-                
-                // עדכון אדמין
-                if (currentMode === 'admin') {
-                    li.querySelector('.drag-handle').style.display = 'block';
-                    li.querySelector('.admin-btn-group').style.display = 'flex';
-                }
             });
 
             updateLeaderboard(singerScores);
@@ -522,4 +518,3 @@
     </script>
 </body>
 </html>
-```
