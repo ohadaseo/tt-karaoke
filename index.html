@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - מערכת מלאה ומתוקנת</title>
+    <title>קריוקי - שליטה מרחוק</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -20,39 +20,22 @@
             overflow-x: hidden;
         }
 
-        /* --- נגן היוטיוב --- */
+        /* --- נגן היוטיוב (רק למקרן!) --- */
         #player-wrapper {
-            background: #000;
-            width: 100%;
-            max-width: 640px;
-            margin: 0 auto;
-            display: none; /* מוסתר לאורחים */
-            position: relative;
+            display: none; /* מוסתר לכולם כברירת מחדל */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 100;
         }
         
-        /* מצב מקרן: מסך מלא */
-        body.mode-projector #player-wrapper {
-            display: block;
-            max-width: 100%;
-            height: 100vh;
-            position: fixed; top: 0; left: 0; z-index: 100;
-        }
-        body.mode-projector #player { height: 100%; }
+        /* רק במצב מקרן הנגן מופיע */
+        body.mode-projector #player-wrapper { display: block; }
+        #player { width: 100%; height: 100%; }
 
-        /* מצב אדמין: נגן למעלה */
-        body.mode-admin #player-wrapper {
-            display: block;
-            border-bottom: 3px solid #00e676;
-        }
-
-        /* --- שכבת הבועות (רק למקרן) --- */
+        /* שכבת הבועות והמידע (מקרן) */
         #projector-overlay {
-            display: none;
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; 
-            z-index: 200;
+            pointer-events: none; z-index: 200;
         }
-        body.mode-projector #projector-overlay { display: block; }
 
         #chat-bubbles-area {
             position: absolute; bottom: 50px; left: 20px;
@@ -77,31 +60,25 @@
             100% { opacity: 0; transform: translateY(-50px); }
         }
 
-        /* פרטי זמר במקרן */
         #projector-info {
-            position: absolute; top: 20px; right: 20px;
+            position: absolute; top: 30px; right: 30px;
             text-align: right; text-shadow: 2px 2px 4px #000;
+            background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px;
         }
-        #p-singer { font-size: 3em; font-weight: bold; color: white; display: block; }
-        #p-song { font-size: 1.5em; color: #ddd; }
+        #p-singer { font-size: 3em; font-weight: bold; color: #ffd700; display: block; }
+        #p-song { font-size: 1.8em; color: #fff; }
 
-        /* --- אלמנטים שמופיעים רק לאדמין (CSS Magic) --- */
-        .admin-only-btn { display: none !important; }
-        body.mode-admin .admin-only-btn { display: inline-block !important; }
-        
-        .admin-flex-group { display: none !important; }
-        body.mode-admin .admin-flex-group { display: flex !important; gap: 10px; }
-
-        .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding-left: 10px; display: none; }
-        body.mode-admin .drag-handle { display: block; }
-
-        /* פאנל שליטה אדמין */
-        #admin-controls { display: none; padding: 15px; background: #1a1a1a; border-bottom: 1px solid #333; }
+        /* --- ממשק אדמין (בלי נגן) --- */
+        #admin-controls { display: none; padding: 20px; background: #1a1a1a; border-bottom: 4px solid #00e676; }
         body.mode-admin #admin-controls { display: block; }
         
-        .btn-sort { background: gold; color: black; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; margin-top: 5px; cursor: pointer; border: none; }
+        .admin-status-box {
+            background: #000; border: 1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 8px;
+        }
+        .playing-indicator { color: #00e676; font-weight: bold; font-size: 1.2em; animation: pulseText 2s infinite; }
+        @keyframes pulseText { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* --- ממשק אורח (מוסתר במקרן) --- */
+        /* --- ממשק אורח --- */
         #guest-view { padding: 15px; transition: opacity 0.5s; }
         body.mode-projector #guest-view { display: none; } 
         
@@ -125,11 +102,21 @@
         .song-header { padding: 10px; display: flex; justify-content: space-between; align-items: center; background: #333; }
         .song-info { text-align: right; flex-grow: 1; }
         .singer-label { color: #00e676; font-size: 0.9em; font-weight: bold; display: block; }
+        
         .list-vote-bar { background: #222; padding: 8px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #444; }
         .vote-btn { background: transparent; border: 1px solid #555; color: #888; cursor: pointer; border-radius: 5px; padding: 5px 12px; }
         .vote-btn.active-up { background: rgba(0,230,118,0.2); color: #00e676; border-color: #00e676; }
         .vote-btn.active-down { background: rgba(255,68,68,0.2); color: #ff4444; border-color: #ff4444; }
-        
+        .total-score { font-weight: bold; font-size: 1.1em; color: white; min-width: 30px; }
+
+        /* כפתורי אדמין בתוך שיר */
+        .admin-flex-group { display: none; gap: 10px; }
+        body.mode-admin .admin-flex-group { display: flex; }
+        .drag-handle { cursor: grab; font-size: 24px; color: #aaa; padding-left: 10px; display: none; }
+        body.mode-admin .drag-handle { display: block; }
+
+        .btn-sort { background: gold; color: black; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; margin-top: 5px; cursor: pointer; border: none; }
+
         /* פוטר כפתורים */
         #footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; padding: 10px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #333; z-index: 900; }
         .mode-btn { background: #333; color: #aaa; border: 1px solid #444; padding: 5px 15px; cursor: pointer; border-radius: 5px; }
@@ -144,7 +131,6 @@
 
     <div id="player-wrapper">
         <div id="player"></div>
-        
         <div id="projector-overlay">
             <div id="projector-info">
                 <span id="p-singer"></span>
@@ -155,9 +141,15 @@
     </div>
 
     <div id="admin-controls">
-        <h3 style="margin:0; color:#00e676;">🎧 ניהול קריוקי</h3>
+        <h2 style="margin:0 0 10px 0; color:#00e676;">🎧 DJ REMOTE</h2>
+        
+        <div class="admin-status-box">
+            <div style="color:#aaa; font-size:0.9em;">סטטוס מקרן:</div>
+            <div id="admin-now-playing" class="playing-indicator">ממתין לבחירה...</div>
+        </div>
+
         <button class="btn-sort" onclick="sortQueueByRating()">📊 מיין רשימה לפי לייקים</button>
-        <button onclick="stopLive()" style="background:red; color:white; border:none; padding:10px; width:100%; margin-top:10px; border-radius:5px; cursor:pointer; font-weight:bold;">⏹ עצור הופעה חיה</button>
+        <button onclick="stopLive()" style="background:red; color:white; border:none; padding:12px; width:100%; margin-top:10px; border-radius:5px; cursor:pointer; font-weight:bold;">⏹ עצור שידור למקרן</button>
     </div>
 
     <div id="guest-view">
@@ -197,8 +189,8 @@
     </div>
 
     <div id="footer-controls">
-        <button class="mode-btn" onclick="loginMode('admin')">Admin</button>
-        <button class="mode-btn" onclick="loginMode('projector')">Projector</button>
+        <button class="mode-btn" onclick="loginMode('admin')">Admin (שליטה)</button>
+        <button class="mode-btn" onclick="loginMode('projector')">Projector (מסך)</button>
         <button class="mode-btn" onclick="location.reload()">Guest</button>
     </div>
 
@@ -224,7 +216,6 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        // שמות קבועים
         const queueRef = db.ref('karaoke_queue_main');      
         const liveRef = db.ref('karaoke_live_stage'); 
         const chatRef = db.ref('karaoke_chat_messages');
@@ -258,17 +249,16 @@
                 document.body.className = 'mode-' + mode;
                 currentMode = mode;
                 
-                // טעינת הנגן
-                if (!window.YT) {
-                    var tag = document.createElement('script');
-                    tag.src = "https://www.youtube.com/iframe_api";
-                    var firstScriptTag = document.getElementsByTagName('script')[0];
-                    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-                } else if (!player) {
-                    onYouTubeIframeAPIReady();
-                }
-
+                // טעינת הנגן - רק במקרן!
                 if (mode === 'projector') {
+                    if (!window.YT) {
+                        var tag = document.createElement('script');
+                        tag.src = "https://www.youtube.com/iframe_api";
+                        var firstScriptTag = document.getElementsByTagName('script')[0];
+                        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                    } else if (!player) {
+                        onYouTubeIframeAPIReady();
+                    }
                     initChatListener(); 
                 }
             } else {
@@ -277,10 +267,10 @@
         }
 
         function onYouTubeIframeAPIReady() {
-            if (currentMode !== 'guest') {
+            if (currentMode === 'projector') {
                 player = new YT.Player('player', {
-                    height: '360', width: '100%',
-                    playerVars: { 'autoplay': 1, 'controls': 1 }
+                    height: '100%', width: '100%',
+                    playerVars: { 'autoplay': 1, 'controls': 0, 'rel': 0, 'showinfo': 0 }
                 });
             }
         }
@@ -303,7 +293,7 @@
             if (!msg) return;
             chatRef.push({ sender: name, text: msg, time: Date.now() });
             document.getElementById('chatMsg').value = '';
-            alert("ההודעה נשלחה למסך!");
+            alert("נשלח!");
         }
 
         function initChatListener() {
@@ -314,37 +304,63 @@
         }
 
         // ==========================================
-        // 4. במה חיה (סנכרון בין כולם)
+        // 4. במה חיה (סנכרון + נגן מקרן + חיווי אדמין)
         // ==========================================
         liveRef.on('value', snapshot => {
             const data = snapshot.val();
-            // UI למשתמש
+            
+            // אלמנטים למשתמש
             const stageUser = document.getElementById('live-stage-user');
             const btn = document.getElementById('live-star-btn');
             
-            // UI למקרן
+            // אלמנטים למקרן
             const pSinger = document.getElementById('p-singer');
             const pSong = document.getElementById('p-song');
+            
+            // אלמנט לאדמין
+            const adminText = document.getElementById('admin-now-playing');
 
             if (data && data.active) {
+                // UI משתמש
                 stageUser.style.display = 'block';
                 document.getElementById('live-singer-u').innerText = data.singer;
                 document.getElementById('live-song-u').innerText = data.song;
                 
-                if(pSinger) pSinger.innerText = data.singer;
-                if(pSong) pSong.innerText = data.song;
+                // UI אדמין
+                adminText.innerText = `מנגן כעת: ${data.singer} - ${data.song}`;
+                adminText.style.color = "#00e676";
+
+                // UI מקרן + ניגון
+                if (pSinger) pSinger.innerText = data.singer;
+                if (pSong) pSong.innerText = data.song;
+
+                // בדיקה: אם אנחנו המקרן - ננגן!
+                if (currentMode === 'projector' && player && player.loadVideoById) {
+                    // בדיקה קטנה שלא נטען אותו שיר שוב ושוב
+                    if(player.getVideoData && player.getVideoData().video_id !== data.videoId) {
+                        player.loadVideoById(data.videoId);
+                    }
+                }
 
                 currentLiveSongKey = data.originalSongKey; 
 
+                // בדיקת הצבעה (למשתמש)
                 if(localStorage.getItem('voted_' + currentLiveSongKey)) {
                      btn.disabled = true; btn.innerText = "נתת כוכב! ⭐";
                 } else {
                     btn.disabled = false; btn.innerText = "⭐ תן כוכב למבצע!";
                 }
             } else {
+                // הופעה הסתיימה
                 stageUser.style.display = 'none';
                 if(pSinger) pSinger.innerText = "";
                 if(pSong) pSong.innerText = "";
+                adminText.innerText = "הבמה כבויה (ממתין לשיר...)";
+                adminText.style.color = "#aaa";
+                
+                if (currentMode === 'projector' && player && player.stopVideo) {
+                    player.stopVideo();
+                }
             }
         });
 
@@ -357,7 +373,7 @@
         }
 
         // ==========================================
-        // 5. רשימה, טבלה, הצבעות
+        // 5. רשימה וטבלה
         // ==========================================
         queueRef.orderByChild('customOrder').on('value', (snapshot) => {
             const listEl = document.getElementById('queue');
@@ -370,6 +386,7 @@
             songs.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
 
             songs.forEach(song => {
+                // חישוב ניקוד לרשימה
                 let listScore = 0;
                 let myListVote = 0; 
                 if (song.listVotes) {
@@ -379,6 +396,7 @@
                     });
                 }
 
+                // חישוב כוכבים (לטבלה בלבד)
                 let stageScore = 0;
                 if (song.stageStars) stageScore = Object.keys(song.stageStars).length;
                 
@@ -389,17 +407,16 @@
                 const li = document.createElement('li');
                 li.setAttribute('data-key', song.key);
 
-                // כאן התיקון הקריטי לאדמין
                 let html = `
                     <div class="song-header">
-                        <div class="drag-handle">☰</div>
+                        <div class="drag-handle" style="display:none;">☰</div>
                         <div class="song-info">
                             <span class="singer-label">${singer}</span>
                             <div class="song-title">${song.title}</div>
                         </div>
                         <div class="admin-flex-group" style="gap:10px;">
                              <button style="background:#00e676; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; color:black; font-weight:bold;" 
-                                onclick="moveToStage('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶ לבמה</button>
+                                onclick="sendToProjector('${song.key}', '${song.videoId}', '${song.title.replace(/'/g, "")}', '${singer}')">▶ לבמה</button>
                              <button style="background:#ff4444; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; color:white;" 
                                 onclick="deleteSong('${song.key}')">🗑</button>
                         </div>
@@ -453,12 +470,19 @@
             });
         }
 
-        function moveToStage(key, videoId, title, singer) {
-            if (player) { player.loadVideoById(videoId); window.scrollTo(0,0); }
-            liveRef.set({ active: true, song: title, singer: singer, originalSongKey: key, timestamp: Date.now() });
+        // זה הטריגר! האדמין לוחץ כאן -> המידע נשלח לפיירבייס -> המקרן קולט ומנגן
+        function sendToProjector(key, videoId, title, singer) {
+            liveRef.set({ 
+                active: true, 
+                song: title, 
+                singer: singer, 
+                videoId: videoId, // חובה לשלוח את ה-ID למקרן
+                originalSongKey: key, 
+                timestamp: Date.now() 
+            });
         }
 
-        function stopLive() { liveRef.update({ active: false }); if(player) player.stopVideo(); }
+        function stopLive() { liveRef.update({ active: false }); }
         function deleteSong(key) { if(confirm("למחוק?")) queueRef.child(key).remove(); }
 
         // גרירה
