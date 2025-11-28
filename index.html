@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>קריוקי - מסיבה מלאה</title>
+    <title>קריוקי - גרסה יציבה</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -29,7 +29,7 @@
         body.mode-projector #player-wrapper { display: block; }
         #player { width: 100%; height: 100%; }
 
-        /* --- שכבת המידע למקרן (צ'אט + אמוג'יז) --- */
+        /* --- שכבת המידע למקרן --- */
         #projector-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 200;
@@ -140,11 +140,20 @@
         .song-info { text-align: right; flex-grow: 1; }
         .singer-label { color: #00e676; font-size: 0.9em; font-weight: bold; display: block; }
         
+        /* כפתורי לייק/בוז ברשימה */
+        .list-vote-bar { background: #222; padding: 8px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #444; }
+        .vote-group { display: flex; gap: 10px; align-items: center; }
+        .vote-btn { background: transparent; border: 1px solid #555; color: #888; cursor: pointer; border-radius: 5px; padding: 5px 12px; }
+        .vote-btn.active-up { background: rgba(0,230,118,0.2); color: #00e676; border-color: #00e676; }
+        .vote-btn.active-down { background: rgba(255,68,68,0.2); color: #ff4444; border-color: #ff4444; }
+        .total-score { font-weight: bold; font-size: 1.1em; color: white; min-width: 30px; }
+
         .admin-flex-group { display: none; gap: 10px; }
         body.mode-admin .admin-flex-group { display: flex; }
         .drag-handle { cursor: grab; font-size: 24px; color: #ffd700; padding-left: 10px; display: none; }
         body.mode-admin .drag-handle { display: block; }
 
+        /* במה חיה משתמש */
         #live-stage-user { display: none; background: linear-gradient(135deg, #111, #000); border-bottom: 4px solid #00e676; padding: 20px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,230,118,0.2); }
         #live-star-btn { background: gold; color: black; font-weight: bold; padding: 10px 30px; border-radius: 50px; border:none; cursor: pointer; font-size: 18px; margin-top: 10px; }
         #live-star-btn:disabled { background: #444; color: #888; cursor: default; }
@@ -152,6 +161,8 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         td { padding: 8px; border-bottom: 1px solid #333; font-size: 1.1em; }
         .rank-1 { color: #ffd700; font-weight: bold; font-size: 1.3em; }
+
+        .btn-sort { background: gold; color: black; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; margin-top: 5px; cursor: pointer; border: none; }
 
         #footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; padding: 10px; display: flex; justify-content: center; gap: 10px; border-top: 1px solid #333; z-index: 900; }
         .mode-btn { background: #333; color: #aaa; border: 1px solid #444; padding: 5px 15px; cursor: pointer; border-radius: 5px; }
@@ -161,10 +172,10 @@
 
     <div id="login-overlay">
         <div class="login-box">
-            <div class="login-title">🎤 ברוכים הבאים!</div>
+            <div class="login-title">🎤 כניסה</div>
             <div style="margin-bottom:10px; color:#aaa;">איך קוראים לך?</div>
             <input type="text" id="loginNameInput" placeholder="הכנס שם...">
-            <button class="login-btn" onclick="saveUserAndStart()">התחל לשיר! 🚀</button>
+            <button class="login-btn" onclick="saveUserAndStart()">כנס! 🚀</button>
         </div>
     </div>
 
@@ -187,16 +198,15 @@
 
     <div id="admin-controls">
         <h2 style="margin:0 0 10px 0; color:#00e676;">🎧 DJ REMOTE</h2>
-        <div class="admin-status-box">
-            <div style="color:#aaa; font-size:0.9em;">סטטוס מקרן:</div>
-            <div id="admin-now-playing" class="playing-indicator">ממתין לבחירה...</div>
-        </div>
-        <button onclick="stopLive()" style="background:red; color:white; border:none; padding:12px; width:100%; margin-top:10px; border-radius:5px; cursor:pointer; font-weight:bold;">⏹ עצור שידור למקרן</button>
+        <div style="color:#aaa; margin-bottom:10px;">סטטוס: <span id="admin-status" style="color:#fff;">ממתין...</span></div>
+        <button class="btn-sort" onclick="sortQueueByRating()">📊 מיין רשימה לפי לייקים</button>
+        <button onclick="stopLive()" style="background:red; color:white; border:none; padding:12px; width:100%; margin-top:10px; border-radius:5px; cursor:pointer; font-weight:bold;">⏹ עצור הופעה חיה</button>
+        <button onclick="resetSystem()" style="background:#444; color:white; border:none; padding:10px; width:100%; margin-top:30px; border-radius:5px; cursor:pointer;">🧹 איפוס מערכת (מחיקת הכל)</button>
     </div>
 
     <div id="guest-view">
         <div style="text-align:left; margin-bottom:10px;">
-            <button onclick="changeUser()" style="background:transparent; border:1px solid #555; color:#aaa; font-size:12px; cursor:pointer;">🔄 החלף משתמש</button>
+            <button onclick="changeUser()" style="background:transparent; border:1px solid #555; color:#aaa; font-size:12px; cursor:pointer;">🔄 החלף שם: <span id="display-name"></span></button>
         </div>
 
         <div id="live-stage-user">
@@ -204,24 +214,24 @@
             <div id="live-singer-u" style="font-size:2em; font-weight:bold; color:#fff; margin:5px 0;">...</div>
             <div id="live-song-u" style="font-size:1.2em; color:#aaa;">...</div>
             <button id="live-star-btn" onclick="giveLiveStar()">⭐ תן כוכב למבצע!</button>
+            
+            <div style="margin-top:20px; border-top:1px solid #333; padding-top:10px;">
+                <div style="color:#aaa; font-size:0.9em; margin-bottom:10px;">שלח תגובה למסך:</div>
+                <div class="emoji-bar">
+                    <button class="emoji-btn" onclick="sendEmoji('❤️')">❤️</button>
+                    <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
+                    <button class="emoji-btn" onclick="sendEmoji('👎')">👎</button>
+                    <button class="emoji-btn" onclick="sendEmoji('💩')">💩</button>
+                </div>
+            </div>
         </div>
 
         <div class="container-box">
             <h3 style="margin:0; color:#ffd700;">🏆 טבלת המבצעים</h3>
             <table>
-                <thead><tr><th>#</th><th>זמר/ת</th><th>כוכבים</th></tr></thead>
+                <thead><tr><th>#</th><th>זמר/ת</th><th>ניקוד</th></tr></thead>
                 <tbody id="leaderboard-body"></tbody>
             </table>
-        </div>
-
-        <div class="container-box" style="border:1px solid #ffd700;">
-            <h3 style="margin:0 0 10px 0; color:#ffd700;">שלח תגובה למסך:</h3>
-            <div class="emoji-bar">
-                <button class="emoji-btn" onclick="sendEmoji('❤️')">❤️</button>
-                <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
-                <button class="emoji-btn" onclick="sendEmoji('👎')">👎</button>
-                <button class="emoji-btn" onclick="sendEmoji('💩')">💩</button>
-            </div>
         </div>
 
         <div class="container-box">
@@ -253,7 +263,7 @@
         // ==========================================
         // 1. מפתחות
         // ==========================================
-        const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
+       const YOUTUBE_API_KEYS = ['AIzaSyCID8UzGuJDQE3e_3tY_xvbxQftQzwSwEA']; // *** הכנס כאן את מפתח היוטיוב שלך ***
                 
         const firebaseConfig = {
             // *** הכנס כאן את ה-Config מ-Firebase ***
@@ -267,13 +277,14 @@
             measurementId: "G-SN8MNYFCH6"
         };
 
+
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        const queueRef = db.ref('karaoke_queue_clean'); 
-        const liveRef = db.ref('karaoke_live_clean'); 
-        const chatRef = db.ref('karaoke_chat_clean');
-        const emojiRef = db.ref('karaoke_emojis'); // ערוץ האמוג'י
+        const queueRef = db.ref('karaoke_queue_fixed'); // שם חדש נקי
+        const liveRef = db.ref('karaoke_live_fixed'); 
+        const chatRef = db.ref('karaoke_chat_fixed');
+        const emojiRef = db.ref('karaoke_emojis_fixed');
 
         let player;
         let currentMode = 'guest'; 
@@ -287,6 +298,7 @@
             const savedName = localStorage.getItem('karaokeName');
             if (savedName) {
                 document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('display-name').innerText = savedName;
             } else {
                 document.getElementById('login-overlay').style.display = 'flex';
             }
@@ -303,6 +315,7 @@
             if (!name) { alert("חובה להזין שם!"); return; }
             localStorage.setItem('karaokeName', name);
             document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('display-name').innerText = name;
         }
 
         function changeUser() {
@@ -319,7 +332,7 @@
         }
 
         // ==========================================
-        // 2. ניהול מצבים + מקרן
+        // 2. ניהול מצבים + אתחול מקרן
         // ==========================================
         function loginMode(mode) {
             if (mode === 'guest') {
@@ -359,15 +372,12 @@
         }
 
         // ==========================================
-        // 3. אמוג'יז וצ'אט בועות
+        // 3. אמוג'יז וצ'אט
         // ==========================================
-        
-        // שליחת אמוג'י (משתמש)
         function sendEmoji(icon) {
             emojiRef.push({ icon: icon, time: Date.now() });
         }
 
-        // קבלת אמוג'י (מקרן)
         function initEmojiListener() {
             emojiRef.on('child_added', snapshot => {
                 const data = snapshot.val();
@@ -378,19 +388,16 @@
             });
         }
 
-        // אנימציית אמוג'י
         function showFloatingEmoji(icon) {
             const area = document.getElementById('emoji-floating-area');
             const el = document.createElement('div');
             el.className = 'floating-emoji';
             el.innerText = icon;
-            // מיקום אקראי רוחבי
             el.style.right = Math.floor(Math.random() * 80) + 'px';
             area.appendChild(el);
             setTimeout(() => el.remove(), 4000);
         }
 
-        // צ'אט
         function showBubble(msgData) {
             const area = document.getElementById('chat-bubbles-area');
             const bubble = document.createElement('div');
@@ -427,14 +434,14 @@
             const btn = document.getElementById('live-star-btn');
             const pSinger = document.getElementById('p-singer');
             const pSong = document.getElementById('p-song');
-            const adminText = document.getElementById('admin-now-playing');
+            const adminStatus = document.getElementById('admin-status');
 
             if (data && data.active) {
                 stageUser.style.display = 'block';
                 document.getElementById('live-singer-u').innerText = data.singer;
                 document.getElementById('live-song-u').innerText = data.song;
-                adminText.innerText = `מנגן כעת: ${data.singer} - ${data.song}`;
-                adminText.style.color = "#00e676";
+                adminStatus.innerText = `מנגן: ${data.singer}`;
+                adminStatus.style.color = "#00e676";
 
                 if (pSinger) pSinger.innerText = data.singer;
                 if (pSong) pSong.innerText = data.song;
@@ -456,8 +463,8 @@
                 stageUser.style.display = 'none';
                 if(pSinger) pSinger.innerText = "";
                 if(pSong) pSong.innerText = "";
-                adminText.innerText = "הבמה כבויה (ממתין לשיר...)";
-                adminText.style.color = "#aaa";
+                adminStatus.innerText = "ממתין...";
+                adminStatus.style.color = "#fff";
                 if (currentMode === 'projector' && player && player.stopVideo) player.stopVideo();
             }
         });
@@ -471,7 +478,7 @@
         }
 
         // ==========================================
-        // 5. רשימה נקייה + טבלה
+        // 5. רשימה נקייה + טבלה (התיקון הגדול)
         // ==========================================
         queueRef.orderByChild('customOrder').on('value', (snapshot) => {
             const listEl = document.getElementById('queue');
@@ -480,19 +487,35 @@
             let songs = [];
             let singerScores = {}; 
 
-            snapshot.forEach(child => { songs.push({ key: child.key, ...child.val() }); });
+            snapshot.forEach(child => { 
+                const val = child.val();
+                // --- סינון שירים פגומים! ---
+                if (!val.title || !val.videoId || !val.addedBy) return;
+                songs.push({ key: child.key, ...val }); 
+            });
+            
             songs.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0));
 
             songs.forEach(song => {
+                let listScore = 0;
+                let myListVote = 0; 
+                if (song.listVotes) {
+                    Object.entries(song.listVotes).forEach(([uid, val]) => {
+                        listScore += val;
+                        if (uid === myUserId) myListVote = val;
+                    });
+                }
+
                 let stageScore = 0;
                 if (song.stageStars) stageScore = Object.keys(song.stageStars).length;
                 
-                const singer = (song.addedBy || "אורח").trim();
+                // התיקון: ניקוד מצטבר לזמר (addedBy)
+                const singer = (song.addedBy).trim();
                 if (!singerScores[singer]) singerScores[singer] = 0;
-                singerScores[singer] += stageScore; 
+                singerScores[singer] += (stageScore + listScore); 
 
-                const safeTitle = (song.title || "טוען...").replace(/'/g, "");
-                const safeId = song.videoId || "";
+                const safeTitle = (song.title).replace(/'/g, "");
+                const safeId = song.videoId;
 
                 const li = document.createElement('li');
                 li.setAttribute('data-key', song.key);
@@ -509,6 +532,14 @@
                                 onclick="moveToStage('${song.key}', '${safeId}', '${safeTitle}', '${singer}')">▶ לבמה</button>
                              <button style="background:#ff4444; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; color:white;" 
                                 onclick="deleteSong('${song.key}')">🗑</button>
+                        </div>
+                    </div>
+                    <div class="list-vote-bar">
+                        <div style="color:#aaa; font-size:0.8em;">דירוג:</div>
+                        <div class="vote-group">
+                            <button class="vote-btn ${myListVote === 1 ? 'active-up' : ''}" onclick="voteList('${song.key}', 1)">👍</button>
+                            <span class="total-score" style="color:${listScore > 0 ? '#00e676' : (listScore < 0 ? '#ff4444' : 'white')}">${listScore}</span>
+                            <button class="vote-btn ${myListVote === -1 ? 'active-down' : ''}" onclick="voteList('${song.key}', -1)">👎</button>
                         </div>
                     </div>
                 `;
@@ -529,24 +560,38 @@
             });
         }
 
-        // ==========================================
-        // 6. פעולות אדמין
-        // ==========================================
-        function moveToStage(key, videoId, title, singer) {
-            liveRef.set({ 
-                active: true, 
-                song: title, 
-                singer: singer, 
-                videoId: videoId, 
-                originalSongKey: key, 
-                timestamp: Date.now() 
+        function voteList(songKey, value) {
+            queueRef.child(songKey).child('listVotes').child(myUserId).transaction(curr => curr === value ? null : value);
+        }
+
+        // --- פונקציות אדמין ---
+        function sortQueueByRating() {
+            if(!confirm("לסדר לפי לייקים?")) return;
+            queueRef.once('value', snapshot => {
+                let songsArr = [];
+                snapshot.forEach(child => {
+                    let song = { key: child.key, ...child.val() };
+                    if (!song.title) return; // הגנה
+                    let listTotal = 0;
+                    if(song.listVotes) Object.values(song.listVotes).forEach(v => listTotal += v);
+                    song.calcScore = listTotal;
+                    songsArr.push(song);
+                });
+                songsArr.sort((a, b) => b.calcScore - a.calcScore);
+                let updates = {};
+                songsArr.forEach((song, index) => { updates[`${song.key}/customOrder`] = index; });
+                queueRef.update(updates);
             });
-            // מחיקה מהרשימה לאחר השידור
+        }
+
+        function moveToStage(key, videoId, title, singer) {
+            liveRef.set({ active: true, song: title, singer: singer, videoId: videoId, originalSongKey: key, timestamp: Date.now() });
             queueRef.child(key).remove();
         }
 
         function stopLive() { liveRef.update({ active: false }); }
         function deleteSong(key) { if(confirm("למחוק?")) queueRef.child(key).remove(); }
+        function resetSystem() { if(confirm("זה ימחק הכל! בטוח?")) { queueRef.remove(); liveRef.remove(); chatRef.remove(); emojiRef.remove(); } }
 
         // גרירה
         new Sortable(document.getElementById('queue'), {
@@ -567,7 +612,6 @@
         async function doSearch() {
             const input = document.getElementById('searchIn').value;
             const name = getCurrentUser(); 
-            
             if (!input) { alert("חייב לרשום שם של שיר!"); return; }
             
             const resDiv = document.getElementById('results');
@@ -599,6 +643,9 @@
 
         function add(id, title) {
             const name = getCurrentUser(); // שם מהזיכרון
+            // בדיקת הגנה לפני הוספה!
+            if (!id || !title || !name) { alert("שגיאה בנתונים"); return; }
+            
             queueRef.push({ videoId: id, title: title, addedBy: name, customOrder: Date.now() });
             document.getElementById('results').style.display = 'none';
             document.getElementById('searchIn').value = '';
